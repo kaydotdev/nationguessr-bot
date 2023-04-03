@@ -2,6 +2,7 @@ use dto::*;
 use lambda_http::{
     http::StatusCode, run, service_fn, Error as LambdaError, IntoResponse, Request, RequestExt,
 };
+use log::info;
 use reqwest::Client;
 use serde_json::json;
 use std::{env, error::Error, fmt};
@@ -52,8 +53,11 @@ async fn message_handler(event: &Request) -> Result<(), BotError> {
         .ok_or(BotError::ParsingError(String::from(
             "Some update message fields are empty or have wrong format",
         )))?;
+
     let chat_id = update.message.chat.id;
     let text = update.message.text;
+
+    info!("Processing message from user: {}", chat_id);
 
     let response_text = format!("You said: {}", text);
     let send_message_url = format!("{}sendMessage", api_url);
@@ -62,9 +66,6 @@ async fn message_handler(event: &Request) -> Result<(), BotError> {
     let request_body = serde_json::json!({
         "chat_id": chat_id,
         "text": response_text,
-        "parse_mode": "Optional",
-        "disable_web_page_preview": false,
-        "disable_notification": false
     });
     let res = client
         .post(&send_message_url)
