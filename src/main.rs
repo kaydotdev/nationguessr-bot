@@ -1,39 +1,15 @@
 use dto::*;
+use error::BotError;
 use lambda_http::{
     http::StatusCode, run, service_fn, Error as LambdaError, IntoResponse, Request, RequestExt,
 };
 use log::info;
 use reqwest::Client;
 use serde_json::json;
-use std::{env, error::Error, fmt};
+use std::env;
 
 pub mod dto;
-
-#[derive(Debug)]
-enum BotError {
-    EnvironmentError(String),
-    ParsingError(String),
-    NetworkError(String),
-}
-
-impl Error for BotError {}
-impl fmt::Display for BotError {
-    fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt.write_str(
-            match self {
-                BotError::EnvironmentError(msg) => format!(
-                    "Environment error occured while executing function: '{}'.",
-                    msg
-                ),
-                BotError::ParsingError(msg) => format!("Error while parsing structure: '{}'.", msg),
-                BotError::NetworkError(msg) => {
-                    format!("Error while sending a network message: '{}'.", msg)
-                }
-            }
-            .as_str(),
-        )
-    }
-}
+pub mod error;
 
 async fn message_handler(event: &Request) -> Result<(), BotError> {
     let token = env::var("BOT_TOKEN").map_err(|_| {
