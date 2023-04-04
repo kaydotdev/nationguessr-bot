@@ -1,4 +1,4 @@
-use client::{BotClient, ResponseMessage};
+use client::{BotClient, BotMessage};
 use dto::*;
 use error::BotError;
 use lambda_http::{
@@ -36,13 +36,9 @@ async fn message_handler(event: &Request) -> Result<(), BotError> {
 
     info!("Processing message from user: {}", chat_id);
 
-    let response_msg = ResponseMessage {
-        chat_id,
-        text: format!("You said: {}.", text),
-    };
-    bot_client.send_message(&response_msg).await?;
+    let response_msg = BotMessage::new(chat_id, format!("You said: {}.", text));
 
-    Ok(())
+    bot_client.send_message(&response_msg).await
 }
 
 pub async fn function_handler(event: Request) -> Result<impl IntoResponse, LambdaError> {
