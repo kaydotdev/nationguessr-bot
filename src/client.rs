@@ -1,10 +1,14 @@
-use crate::dto::ResponseMessage;
 use crate::error::BotError;
 use reqwest::Client;
 
 pub struct BotClient {
     client: Client,
     send_message_url: String,
+}
+
+pub struct ResponseMessage {
+    pub chat_id: i64,
+    pub text: String,
 }
 
 impl BotClient {
@@ -15,7 +19,7 @@ impl BotClient {
         }
     }
 
-    pub async fn send_message(&self, message: ResponseMessage) -> Result<(), BotError> {
+    pub async fn send_message(&self, message: &ResponseMessage) -> Result<(), BotError> {
         let request_body = serde_json::json!({
             "chat_id": message.chat_id,
             "text": message.text,

@@ -1,19 +1,8 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct LambdaEvent {
     pub message: String,
-}
-
-#[derive(Serialize)]
-pub struct Response {
-    pub response: String,
-}
-
-#[derive(Serialize)]
-pub struct ResponseMessage {
-    pub chat_id: i64,
-    pub text: String,
 }
 
 #[derive(Deserialize)]

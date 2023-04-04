@@ -1,11 +1,11 @@
-use client::BotClient;
+use client::{BotClient, ResponseMessage};
 use dto::*;
 use error::BotError;
 use lambda_http::{
     http::StatusCode, run, service_fn, Error as LambdaError, IntoResponse, Request, RequestExt,
 };
 use log::info;
-use serde_json::json;
+use serde_json::{json, Value};
 use std::env;
 
 pub mod client;
@@ -40,18 +40,21 @@ async fn message_handler(event: &Request) -> Result<(), BotError> {
         chat_id,
         text: format!("You said: {}.", text),
     };
-    bot_client.send_message(response_msg).await?;
+    bot_client.send_message(&response_msg).await?;
 
     Ok(())
 }
 
 pub async fn function_handler(event: Request) -> Result<impl IntoResponse, LambdaError> {
-    let response: (StatusCode, String) = match message_handler(&event).await {
+    let response: (StatusCode, Value) = match message_handler(&event).await {
         Err(err) => (
             StatusCode::BAD_REQUEST,
-            json!({ "message": err.to_string() }).to_string(),
+            json!({ "message": err.to_string() }),
         ),
-        Ok(()) => (StatusCode::OK, String::new()),
+        Ok(()) => (
+            StatusCode::OK,
+            json!({ "message": "Response sent successfully." }),
+        ),
     };
 
     Ok(response)
