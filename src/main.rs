@@ -12,6 +12,13 @@ pub mod client;
 pub mod dto;
 pub mod error;
 
+static START_MESSAGE: &str = "🌎 Hi there, I'm Nationguessr! With me, you get to test your knowledge about countries from all over the world by trying to guess them based on random facts about their history, culture, geography, and much more!
+
+🔁 To play a quiz from the start use /restart command.
+🔝 To see your highest score in quiz use /score command.
+
+Here is your first question:";
+
 async fn message_handler(event: &Request) -> Result<(), BotError> {
     let token = env::var("BOT_TOKEN").map_err(|_| {
         BotError::EnvironmentError(String::from(
@@ -36,9 +43,18 @@ async fn message_handler(event: &Request) -> Result<(), BotError> {
 
     info!("Processing message from user: {}", chat_id);
 
-    let response_msg = BotMessage::new(chat_id, format!("You said: {}.", text));
+    let bot_message = match text.as_str() {
+        "/start" => BotMessage::new(chat_id, String::from(START_MESSAGE)),
+        "/restart" => BotMessage::new(chat_id, String::from("Sure, let's try from the very beginning! Here is your first question:")),
+        "/score" => BotMessage::new(chat_id, String::from("Your top score is: *0*.")),
+        "/stop" => BotMessage::new(
+            chat_id,
+            String::from("Sure! Let's end our quiz here! Your score is: *0*."),
+        ),
+        _ => BotMessage::new(chat_id, format!("Your command *{}* is not recognized! See the list of available commands in the *Menu* on the left.", text)),
+    };
 
-    bot_client.send_message(&response_msg).await
+    bot_client.send_message(&bot_message).await
 }
 
 pub async fn function_handler(event: Request) -> Result<impl IntoResponse, LambdaError> {
