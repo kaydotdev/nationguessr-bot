@@ -10,6 +10,12 @@ pub struct Response {
     pub response: String,
 }
 
+#[derive(Serialize)]
+pub struct ResponseMessage {
+    pub chat_id: i64,
+    pub text: String,
+}
+
 #[derive(Deserialize)]
 pub struct Update {
     pub update_id: i64,

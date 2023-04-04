@@ -1,13 +1,14 @@
+use client::BotClient;
 use dto::*;
 use error::BotError;
 use lambda_http::{
     http::StatusCode, run, service_fn, Error as LambdaError, IntoResponse, Request, RequestExt,
 };
 use log::info;
-use reqwest::Client;
 use serde_json::json;
 use std::env;
 
+pub mod client;
 pub mod dto;
 pub mod error;
 
@@ -17,8 +18,8 @@ async fn message_handler(event: &Request) -> Result<(), BotError> {
             "Bot token is not set in environment variables",
         ))
     })?;
-    let api_url = format!("https://api.telegram.org/bot{}/", token);
 
+    let bot_client = BotClient::new(token);
     let update: Update = event
         .payload::<Update>()
         .map_err(|_| {
@@ -35,28 +36,11 @@ async fn message_handler(event: &Request) -> Result<(), BotError> {
 
     info!("Processing message from user: {}", chat_id);
 
-    let response_text = format!("You said: {}", text);
-    let send_message_url = format!("{}sendMessage", api_url);
-
-    let client = Client::new();
-    let request_body = serde_json::json!({
-        "chat_id": chat_id,
-        "text": response_text,
-    });
-    let res = client
-        .post(&send_message_url)
-        .json(&request_body)
-        .send()
-        .await
-        .map_err(|_| {
-            BotError::NetworkError(String::from("Failed to send a response to the user"))
-        })?;
-
-    if !res.status().is_success() {
-        return Err(BotError::NetworkError(String::from(
-            "Failed to send a response to the user",
-        )));
-    }
+    let response_msg = ResponseMessage {
+        chat_id,
+        text: format!("You said: {}.", text),
+    };
+    bot_client.send_message(response_msg).await?;
 
     Ok(())
 }
