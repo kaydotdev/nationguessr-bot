@@ -6,7 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aws-config = "^0.5"
+aws-config = "^0.55"
+aws-sdk-dynamodb = "^0.25"
 tokio = { version = "^1.0", features = ["full"] }
 reqwest = { version = "^0.11", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "^1.0", features = ["derive"] }

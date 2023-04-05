@@ -1,6 +1,7 @@
 use client::{BotClient, BotMessage};
 use dto::*;
 use error::BotError;
+// use fsm::FSMClient;
 use lambda_http::{
     http::StatusCode, run, service_fn, Error as LambdaError, IntoResponse, Request, RequestExt,
 };
@@ -11,6 +12,7 @@ use std::env;
 pub mod client;
 pub mod dto;
 pub mod error;
+pub mod fsm;
 
 static START_MESSAGE: &str = "🌎 Hi there, I'm Nationguessr! With me, you get to test your knowledge about countries from all over the world by trying to guess them based on random facts about their history, culture, geography, and much more!
 
@@ -26,7 +28,14 @@ async fn message_handler(event: &Request) -> Result<(), BotError> {
         ))
     })?;
 
+    // let fsm_table_name = env::var("FSM_TABLE_NAME").map_err(|_| {
+    //     BotError::EnvironmentError(String::from(
+    //         "FSM table name is not set in environment variables",
+    //     ))
+    // })?;
+
     let bot_client = BotClient::new(token);
+    // let fsm_client = FSMClient::build(fsm_table_name).await;
     let update: Update = event
         .payload::<Update>()
         .map_err(|_| {
@@ -54,6 +63,9 @@ async fn message_handler(event: &Request) -> Result<(), BotError> {
         _ => BotMessage::new(chat_id, format!("Your command *{}* is not recognized! See the list of available commands in the *Menu* on the left.", text)),
     };
 
+    // fsm_client
+    //     .set_state(chat_id, String::from("playing"))
+    //     .await?;
     bot_client.send_message(&bot_message).await
 }
 
