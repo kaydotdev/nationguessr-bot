@@ -29,7 +29,7 @@ impl FSMClient {
         Ok(())
     }
 
-    pub async fn get_state(&self, chat_id: i64) -> Result<String, BotError> {
+    pub async fn get_state(&self, chat_id: i64) -> Result<Option<String>, BotError> {
         let response = self
             .client
             .query()
@@ -56,14 +56,7 @@ impl FSMClient {
             )))?
             .get("state_name");
 
-        let state = raw_state
-            .ok_or(BotError::FsmError(String::from(
-                "FSM state value is empty for the user",
-            )))?
-            .as_s()
-            .map_err(|_| BotError::FsmError(String::from("FSM state value has invalid state")))?;
-
-        Ok(state.clone())
+        Ok(raw_state.and_then(|r| r.as_s().ok().cloned()))
     }
 
     pub async fn set_state(&self, chat_id: i64, state_name: String) -> Result<(), BotError> {
