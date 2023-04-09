@@ -38,25 +38,25 @@ impl FSMClient {
             .expression_attribute_names(String::from("#key"), String::from("chat_id"))
             .expression_attribute_values(
                 String::from(":value"),
-                AttributeValue::S(chat_id.to_string()),
+                AttributeValue::N(chat_id.to_string()),
             )
             .select(Select::AllAttributes)
             .send()
             .await
             .map_err(|_| BotError::FsmError(String::from("FSM store is not available")))?;
 
-        let raw_state = response
+        let raw_state_map = response
             .items()
             .ok_or(BotError::ParsingError(String::from(
                 "Given state is not recorded in FSM store",
             )))?
-            .first()
-            .ok_or(BotError::ParsingError(String::from(
-                "FSM state field is not found for the user",
-            )))?
-            .get("state_name");
+            .first();
 
-        Ok(raw_state.and_then(|r| r.as_s().ok().cloned()))
+        let state = raw_state_map
+            .and_then(|m| m.get("state_name"))
+            .and_then(|r| r.as_s().ok().cloned());
+
+        Ok(state)
     }
 
     pub async fn set_state(&self, chat_id: i64, state_name: String) -> Result<(), BotError> {
