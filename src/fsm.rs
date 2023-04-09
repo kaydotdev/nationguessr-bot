@@ -3,6 +3,7 @@ use aws_sdk_dynamodb::{
     types::{AttributeValue, Select},
     Client,
 };
+use std::collections::HashMap;
 
 pub struct FSMClient {
     client: Client,
@@ -53,19 +54,24 @@ impl FSMClient {
             .first();
 
         let state = raw_state_map
-            .and_then(|m| m.get("state_name"))
+            .and_then(|m| m.get("state"))
             .and_then(|r| r.as_s().ok().cloned());
 
         Ok(state)
     }
 
     pub async fn set_state(&self, chat_id: i64, state_name: String) -> Result<(), BotError> {
+        let mut state_metadata: HashMap<String, AttributeValue> = HashMap::new();
+
+        state_metadata.insert(String::from("scores"), AttributeValue::M(HashMap::new()));
+
         let request = self
             .client
             .put_item()
             .table_name(&self.table_name)
             .item("chat_id", AttributeValue::N(chat_id.to_string()))
-            .item("state_name", AttributeValue::S(state_name));
+            .item("state", AttributeValue::S(state_name))
+            .item("meta", AttributeValue::M(state_metadata));
 
         request
             .send()

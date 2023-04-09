@@ -37,6 +37,7 @@ async fn message_handler(event: &Request) -> Result<(), BotError> {
 
     let bot_client = BotClient::new(token);
     let fsm_client = FSMClient::build(fsm_table_name).await;
+
     let update: Update = event
         .payload::<Update>()
         .map_err(|_| {
@@ -53,33 +54,46 @@ async fn message_handler(event: &Request) -> Result<(), BotError> {
 
     info!("Processing message from user: {}", chat_id);
 
-    match fsm_client
-        .get_state(chat_id)
-        .await?
-        .as_ref()
-        .map(|s| s.as_str())
-    {
-        Some("playing") => {
-            let test_message = BotMessage::new(
-                chat_id,
-                String::from("The quiz is over Your score is: *0*."),
-            );
-            fsm_client.reset(chat_id).await?;
-            bot_client.send_message(&test_message).await
-        }
-        _ => {
-            let bot_message = match text.as_str() {
-                "/start" => BotMessage::new(chat_id, String::from(START_MESSAGE)),
-                "/restart" => BotMessage::new(chat_id, String::from("Sure, let's try from the very beginning! Here is your first question:")),
-                "/score" => BotMessage::new(chat_id, String::from("Your top score is: *0*.")),
-                "/stop" => BotMessage::new(chat_id, String::from("Sure! Let's end our quiz here! Your score is: *0*.")),
-                _ => BotMessage::new(chat_id, format!("Your command *{}* is not recognized! See the list of available commands in the *Menu* on the left.", text)),
-            };
+    let current_state = fsm_client.get_state(chat_id).await?;
+
+    match text.as_str() {
+        "/start" => {
+            let bot_message = BotMessage::new(chat_id, String::from(START_MESSAGE));
             fsm_client
                 .set_state(chat_id, String::from("playing"))
                 .await?;
             bot_client.send_message(&bot_message).await
         }
+        "/restart" => {
+            let bot_message =
+                BotMessage::new(chat_id, String::from("TODO: implement restart command."));
+            bot_client.send_message(&bot_message).await
+        }
+        "/score" => {
+            let bot_message =
+                BotMessage::new(chat_id, String::from("TODO: implement score command."));
+            bot_client.send_message(&bot_message).await
+        }
+        "/clear" => {
+            let bot_message = BotMessage::new(
+                chat_id,
+                String::from(
+                    "Now your high score board is empty. Use /start command to play a new game!",
+                ),
+            );
+            fsm_client.reset(chat_id).await?;
+            bot_client.send_message(&bot_message).await
+        }
+        _ => match current_state.as_ref().map(|s| s.as_str()) {
+            Some("playing") => {
+                let bot_message = BotMessage::new(chat_id, String::from("TODO: implement quiz."));
+                bot_client.send_message(&bot_message).await
+            }
+            _ => {
+                let bot_message = BotMessage::new(chat_id, format!("Your command *{}* is not recognized! See the list of available commands in the *Menu* section.", text));
+                bot_client.send_message(&bot_message).await
+            }
+        },
     }
 }
 
