@@ -54,7 +54,7 @@ impl BotClient {
     pub fn new(token: String) -> BotClient {
         Self {
             client: Client::new(),
-            send_message_url: format!("https://api.telegram.org/bot{}/sendMessage", token),
+            send_message_url: format!("https://api.telegram.org/bot{token}/sendMessage"),
         }
     }
 

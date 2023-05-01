@@ -84,13 +84,13 @@ async fn message_handler(event: &Request) -> Result<(), BotError> {
             fsm_client.reset(chat_id).await?;
             bot_client.send_message(&bot_message).await
         }
-        _ => match current_state.as_ref().map(|s| s.as_str()) {
+        _ => match current_state.as_deref() {
             Some("playing") => {
                 let bot_message = BotMessage::new(chat_id, String::from("TODO: implement quiz."));
                 bot_client.send_message(&bot_message).await
             }
             _ => {
-                let bot_message = BotMessage::new(chat_id, format!("Your command *{}* is not recognized! See the list of available commands in the *Menu* section.", text));
+                let bot_message = BotMessage::new(chat_id, format!("Your command *{text}* is not recognized! See the list of available commands in the *Menu* section."));
                 bot_client.send_message(&bot_message).await
             }
         },

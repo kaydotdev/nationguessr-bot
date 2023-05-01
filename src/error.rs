@@ -13,16 +13,15 @@ impl fmt::Display for BotError {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.write_str(
             match self {
-                BotError::EnvironmentError(msg) => format!(
-                    "Environment error occured while executing function: '{}'.",
-                    msg
-                ),
-                BotError::ParsingError(msg) => format!("Error while parsing structure: '{}'.", msg),
+                BotError::EnvironmentError(msg) => {
+                    format!("Environment error occured while executing function: '{msg}'.")
+                }
+                BotError::ParsingError(msg) => format!("Error while parsing structure: '{msg}'."),
                 BotError::NetworkError(msg) => {
-                    format!("Error while sending a network message: '{}'.", msg)
+                    format!("Error while sending a network message: '{msg}'.")
                 }
                 BotError::FsmError(msg) => {
-                    format!("Error while recording an application state: '{}'.", msg)
+                    format!("Error while recording an application state: '{msg}'.")
                 }
             }
             .as_str(),
