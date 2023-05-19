@@ -17,3 +17,9 @@ lambda_runtime = "^0.7"
 lambda_http = "^0.7"
 tracing-subscriber = "^0.3"
 error-stack = "^0.3"
+
+[profile.release]
+strip = true
+opt-level = "s"
+lto = true
+
