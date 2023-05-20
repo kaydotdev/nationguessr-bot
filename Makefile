@@ -27,7 +27,7 @@ lint:
 	cargo clippy
 
 .PHONY: format
-# Automatic fix linting erros for all Python files
+# Automatic fix linting erros for all source files
 format:
 	cargo clippy --fix
 
