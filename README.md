@@ -1,6 +1,6 @@
 # Nationguessr
 
-<img align="right" alt="octocloud" width="168px" src="./assets/logo.png">
+<img align="right" alt="bot_logo" width="250px" src="./assets/logo.png">
 
 [![Bot on Telegram](./assets/telegram.svg)](https://t.me/nationguessr_bot)
 
@@ -10,8 +10,4 @@
 
 ![Lambda](./assets/lambda.svg)
 ![DynamoDB](./assets/dynamodb.svg)
-
-### Assets
-
-Logo made with Midjourney AI Commercial Edition
 
