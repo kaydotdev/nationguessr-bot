@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "nationguessr"
+version = "0.1.0"
+description = "Hi there, I'm Nationguessr, your ultimate quiz-bot on Telegram! Are you a geography enthusiast or just looking to have some fun? Well, I've got you covered! With me, you get to test your knowledge about countries from all over the world by trying to guess them based on random facts about their history, culture, geography, and much more!"
+authors = ["Anton Kozyriev"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+aiogram = "^3.1.1"
+aioredis = "^2.0.1"
+boto3 = "^1.28.84"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.3"
+black = "^23.11.0"
+flake8 = "^6.1.0"
+isort = "^5.12.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
