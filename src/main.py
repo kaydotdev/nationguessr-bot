@@ -4,9 +4,8 @@ import sys
 
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
-
-from handlers import root_router
 from fsm import state_storage
+from handlers import root_router
 from vars import TOKEN
 
 

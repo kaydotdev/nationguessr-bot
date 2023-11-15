@@ -1,5 +1,4 @@
 from aiogram.fsm.context import FSMContext
-
 from models import ScoreBoard
 
 

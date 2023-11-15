@@ -1,5 +1,6 @@
-from typing import Dict, List
 from datetime import datetime
+from typing import Dict, List
+
 from pydantic import BaseModel, NonNegativeInt, StrictStr
 
 
