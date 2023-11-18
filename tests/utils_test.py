@@ -86,7 +86,7 @@ async def test_validate_and_fetch_scores_should_return_recorded_state_from_fsm(
 
 
 @pytest.mark.asyncio
-async def test_validate_and_fetch_scores_should_return_recorded_state_from_fsm(
+async def test_validate_and_fetch_scores_should_throw_if_fsm_state_is_corrupted(
     corrupted_fsm_mock,
 ):
     with pytest.raises(ValidationError):
