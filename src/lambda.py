@@ -26,6 +26,12 @@ def handler(event, context):
     update_event = json.loads(event.get("body", "{}"))
     loop = asyncio.get_event_loop()
 
+    if not TOKEN:
+        logger.error(
+            "API Token is empty or invalid. Set it in `BOT_TOKEN` environment variable."
+        )
+        return {"statusCode": 400}
+
     try:
         loop.run_until_complete(main(update_event))
     except Exception as ex:

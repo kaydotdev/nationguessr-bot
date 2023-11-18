@@ -29,3 +29,9 @@ test:
 # Export project dependencies in `requirements.txt` format for the virtual environments
 requirements:
 	poetry export -f requirements.txt --without=dev --without-hashes --without-urls --output requirements.txt
+
+.PHONY: serve
+# Run Telegram bot script in polling mode
+# Used solely for manual testing in a local environment
+serve:
+	cd src && python main.py
