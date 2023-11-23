@@ -1,8 +1,8 @@
 from datetime import datetime
 from unittest.mock import AsyncMock
-from pydantic import ValidationError
 
 import pytest
+from pydantic import ValidationError
 
 from src.utils import validate_and_fetch_scores
 
@@ -53,7 +53,7 @@ def non_empty_fsm_mock(request):
             "scores": {
                 "": 10,
             }
-        }
+        },
     ],
 )
 def corrupted_fsm_mock(request):
