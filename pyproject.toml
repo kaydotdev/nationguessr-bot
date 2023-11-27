@@ -25,7 +25,7 @@ preview = true
 
 [tool.ruff]
 select = ["A", "B", "C4", "E", "EM", "F", "I001", "Q", "UP"]
-ignore = ["E501"]
+ignore = ["E501", "EM101"]
 
 [tool.pytest.ini_options]
 minversion = 7.4

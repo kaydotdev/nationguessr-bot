@@ -4,9 +4,9 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types.bot_command import BotCommand
 from aiogram.utils.markdown import bold
 from fsm import BotState
-from models import GameSession
-from utils import validate_and_fetch_scores
-from vars import DEFAULT_INIT_LIVES, TOP_SCORES
+from models import FactQuizGenerator, GameSession, JsonFileRetrievalStrategy
+from utils import batched, validate_and_fetch_scores
+from vars import DEFAULT_FACTS_NUM, DEFAULT_INIT_LIVES, DEFAULT_OPTIONS_NUM, TOP_SCORES
 
 root_router = Router()
 
@@ -36,22 +36,40 @@ async def start_handler(message: types.Message, state: FSMContext) -> None:
 
 @root_router.message(BotState.select_game, F.text == "Guess from facts")
 async def start_guess_facts_game(message: types.Message, state: FSMContext) -> None:
+    quiz_generator = FactQuizGenerator(
+        {"AF": "Afghanistan", "AL": "Albania", "DZ": "Algeria", "AD": "Andorra"},
+        JsonFileRetrievalStrategy("./data/test/test_facts.json"),
+        facts_num=DEFAULT_FACTS_NUM,
+        options_num=DEFAULT_OPTIONS_NUM,
+    )
+    quiz_generator.generate()
+
     new_game_session = GameSession(
         lives_remained=DEFAULT_INIT_LIVES,
         current_score=0,
-        options=["Country 1", "Country 2", "Country 3", "Country 4"],
-        correct_option="Country 1",
+        options=quiz_generator.options,
+        correct_option=quiz_generator.correct_option,
     )
 
     await state.set_state(BotState.playing_guess_facts)
     await state.update_data(**new_game_session.model_dump())
     await message.answer(
-        "🌟 Ready for an adventure around the globe? In this thrilling game, you'll"
-        " receive five tantalizing clues about a mysterious country. Your mission?"
-        " Sift through four options to uncover the correct one! But choose wisely –"
-        " you only have five shots at glory. Rack up your score and aim for the top."
-        " Can you master the challenge and become a geography genius? Let the guessing"
-        " begin! 🌟"
+        "🌟 Get ready for an exciting challenge! In this game, I'll share"
+        f" {DEFAULT_FACTS_NUM} intriguing and unique facts about a mystery country."
+        f" Your task? Guess the right country from {DEFAULT_OPTIONS_NUM} options - but "
+        f"there's only one correct answer!\n\nYou've got {DEFAULT_INIT_LIVES}❤️ attempts "
+        f"to prove your skills. Aim high and see how high you can score! Are you up for the"
+        " challenge? Let's go! 🚀"
+    )
+    await message.answer(
+        "\n".join([f"📍 {fact}" for fact in quiz_generator.facts]),
+        reply_markup=types.ReplyKeyboardMarkup(
+            keyboard=[
+                [types.KeyboardButton(text=option) for option in batch]
+                for batch in batched(quiz_generator.options, n=2)
+            ],
+            resize_keyboard=True,
+        ),
     )
 
 

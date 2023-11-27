@@ -23,7 +23,7 @@ async def main():
     dp = Dispatcher(storage=state_storage)
     dp.include_router(root_router)
 
-    await dp.start_polling(bot)
+    await dp.start_polling(bot, skip_updates=True)
 
 
 if __name__ == "__main__":
