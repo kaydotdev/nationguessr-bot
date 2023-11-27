@@ -1,3 +1,5 @@
+import json
+
 from aiogram import F, Router, types
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
@@ -36,8 +38,11 @@ async def start_handler(message: types.Message, state: FSMContext) -> None:
 
 @root_router.message(BotState.select_game, F.text == "Guess from facts")
 async def start_guess_facts_game(message: types.Message, state: FSMContext) -> None:
+    with open("./data/test/test_names.json") as f:
+        country_names = json.load(f)
+
     quiz_generator = FactQuizGenerator(
-        {"AF": "Afghanistan", "AL": "Albania", "DZ": "Algeria", "AD": "Andorra"},
+        country_names,
         JsonFileRetrievalStrategy("./data/test/test_facts.json"),
         facts_num=DEFAULT_FACTS_NUM,
         options_num=DEFAULT_OPTIONS_NUM,
