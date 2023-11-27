@@ -56,10 +56,10 @@ async def start_guess_facts_game(message: types.Message, state: FSMContext) -> N
     await message.answer(
         "🌟 Get ready for an exciting challenge! In this game, I'll share"
         f" {DEFAULT_FACTS_NUM} intriguing and unique facts about a mystery country."
-        f" Your task? Guess the right country from {DEFAULT_OPTIONS_NUM} options - but "
-        f"there's only one correct answer!\n\nYou've got {DEFAULT_INIT_LIVES}❤️ attempts "
-        f"to prove your skills. Aim high and see how high you can score! Are you up for the"
-        " challenge? Let's go! 🚀"
+        f" Your task? Guess the right country from {DEFAULT_OPTIONS_NUM} options - but"
+        f" there's only one correct answer!\n\nYou've got {DEFAULT_INIT_LIVES}❤️"
+        " attempts to prove your skills. Aim high and see how high you can score! Are"
+        " you up for the challenge? Let's go! 🚀"
     )
     await message.answer(
         "\n".join([f"📍 {fact}" for fact in quiz_generator.facts]),
