@@ -1,4 +1,5 @@
 import json
+import random
 
 from aiogram import F, Router, types
 from aiogram.filters import Command, CommandStart
@@ -6,7 +7,8 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types.bot_command import BotCommand
 from aiogram.utils.markdown import bold
 from fsm import BotState
-from models import FactQuizGenerator, GameSession, JsonFileRetrievalStrategy
+from models import GameSession
+from models.facts import CountryCode, JSONReservoirSamplingGenerator
 from utils import batched, validate_and_fetch_scores
 from vars import DEFAULT_FACTS_NUM, DEFAULT_INIT_LIVES, DEFAULT_OPTIONS_NUM, TOP_SCORES
 
@@ -38,22 +40,26 @@ async def start_handler(message: types.Message, state: FSMContext) -> None:
 
 @root_router.message(BotState.select_game, F.text == "Guess from facts")
 async def start_guess_facts_game(message: types.Message, state: FSMContext) -> None:
-    with open("./data/test/test_names.json") as f:
+    with open("./data/dev/names.json") as f:
         country_names = json.load(f)
 
-    quiz_generator = FactQuizGenerator(
-        country_names,
-        JsonFileRetrievalStrategy("./data/test/test_facts.json"),
-        facts_num=DEFAULT_FACTS_NUM,
-        options_num=DEFAULT_OPTIONS_NUM,
+    selected_country_codes = random.sample(country_names.keys(), DEFAULT_OPTIONS_NUM)
+    selected_correct_code = random.choice(selected_country_codes)
+
+    facts_generator = JSONReservoirSamplingGenerator(
+        "./data/dev/facts.json",
+        CountryCode(code=selected_correct_code),
+        DEFAULT_FACTS_NUM
     )
-    quiz_generator.generate()
+
+    options = [country_names.get(code) for code in selected_country_codes]
+    correct_option = country_names.get(selected_correct_code)
 
     new_game_session = GameSession(
         lives_remained=DEFAULT_INIT_LIVES,
         current_score=0,
-        options=quiz_generator.options,
-        correct_option=quiz_generator.correct_option,
+        options=options,
+        correct_option=correct_option,
     )
 
     await state.set_state(BotState.playing_guess_facts)
@@ -66,12 +72,13 @@ async def start_guess_facts_game(message: types.Message, state: FSMContext) -> N
         " attempts to prove your skills. Aim high and see how high you can score! Are"
         " you up for the challenge? Let's go! 🚀"
     )
+
     await message.answer(
-        "\n".join([f"📍 {fact}" for fact in quiz_generator.facts]),
+        "\n".join([f"📍 {fact}" for fact in facts_generator.generate()]),
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [types.KeyboardButton(text=option) for option in batch]
-                for batch in batched(quiz_generator.options, n=2)
+                for batch in batched(options, n=2)
             ],
             resize_keyboard=True,
         ),
