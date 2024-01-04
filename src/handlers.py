@@ -1,4 +1,5 @@
 import json
+import logging
 import random
 
 from aiogram import F, Router, types
@@ -7,12 +8,13 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types.bot_command import BotCommand
 from aiogram.utils.markdown import bold
 from fsm import BotState
-from models import GameSession
-from models.facts import CountryCode, JSONReservoirSamplingGenerator
-from utils import batched, validate_and_fetch_scores
+from models import CountryCode, json_fetch_country_facts
+from state import GameSession
+from utils import batched, reservoir_sampling, validate_and_fetch_scores
 from vars import DEFAULT_FACTS_NUM, DEFAULT_INIT_LIVES, DEFAULT_OPTIONS_NUM, TOP_SCORES
 
 root_router = Router()
+logger = logging.getLogger()
 
 
 @root_router.message(CommandStart())
@@ -40,17 +42,29 @@ async def start_handler(message: types.Message, state: FSMContext) -> None:
 
 @root_router.message(BotState.select_game, F.text == "Guess from facts")
 async def start_guess_facts_game(message: types.Message, state: FSMContext) -> None:
-    with open("./data/dev/names.json") as f:
-        country_names = json.load(f)
+    try:
+        with (
+            open("./data/dev/facts.json") as country_facts_file,
+            open("./data/dev/names.json") as country_names_file,
+        ):
+            country_names = json.load(country_names_file)
 
-    selected_country_codes = random.sample(country_names.keys(), DEFAULT_OPTIONS_NUM)
-    selected_correct_code = random.choice(selected_country_codes)
-
-    facts_generator = JSONReservoirSamplingGenerator(
-        "./data/dev/facts.json",
-        CountryCode(code=selected_correct_code),
-        DEFAULT_FACTS_NUM
-    )
+            selected_country_codes = random.sample(
+                country_names.keys(), DEFAULT_OPTIONS_NUM
+            )
+            selected_correct_code = random.choice(selected_country_codes)
+            selected_country_facts = [
+                f"📍 {fact}"
+                for fact in reservoir_sampling(
+                    json_fetch_country_facts(
+                        country_facts_file, CountryCode(code=selected_correct_code)
+                    ),
+                    DEFAULT_FACTS_NUM,
+                )
+            ]
+    except (FileNotFoundError, PermissionError, IsADirectoryError) as ex:
+        logger.error(f"Failed to open files with country names and facts: {ex}")
+        return
 
     options = [country_names.get(code) for code in selected_country_codes]
     correct_option = country_names.get(selected_correct_code)
@@ -74,7 +88,7 @@ async def start_guess_facts_game(message: types.Message, state: FSMContext) -> N
     )
 
     await message.answer(
-        "\n".join([f"📍 {fact}" for fact in facts_generator.generate()]),
+        "\n".join(selected_country_facts),
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [types.KeyboardButton(text=option) for option in batch]
