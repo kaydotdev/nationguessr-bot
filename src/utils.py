@@ -91,5 +91,4 @@ def reservoir_sampling(iterator: Iterable[T], n: int) -> Generator[T, None, None
                     item  # Randomly replace elements in the reservoir with a decreasing probability.
                 )
 
-    for item in reservoir:
-        yield item
+    yield from reservoir
