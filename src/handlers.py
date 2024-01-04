@@ -107,22 +107,25 @@ async def start_guess_facts_game(message: types.Message, state: FSMContext) -> N
     )
 
 
-@root_router.message(BotState.playing_guess_facts, F.text.regexp(r'^[^/].*'))  # Check if the message is not a command
+@root_router.message(
+    BotState.playing_guess_facts, F.text.regexp(r"^[^/].*")
+)  # Check if the message is not a command
 async def play_guess_facts_game(message: types.Message, state: FSMContext) -> None:
     state_data = await state.get_data()
     current_game_session = GameSession(**state_data)
 
     if message.text is None or message.text not in current_game_session.options:
         await message.answer(
-            "🤔 Oops! Looks like there was a mix-up with the entry. Remember, the trick is "
-            "to pick one of the options below. No worries, though! Let's tackle the next "
-            "question and keep the fun rolling. Onwards and upwards!"
+            "🤔 Oops! Looks like there was a mix-up with the entry. Remember, the trick"
+            " is to pick one of the options below. No worries, though! Let's tackle the"
+            " next question and keep the fun rolling. Onwards and upwards!"
         )
         current_game_session.lives_remained -= 1
     elif message.text != current_game_session.correct_option:
         await message.answer(
-            f"😰 Oops, close but not quite! The correct answer was '{current_game_session.correct_option}'. "
-            "Let's keep the energy up and dive into the next question - you've got this!"
+            "😰 Oops, close but not quite! The correct answer was"
+            f" '{current_game_session.correct_option}'. Let's keep the energy up and"
+            " dive into the next question - you've got this!"
         )
         current_game_session.lives_remained -= 1
     else:
