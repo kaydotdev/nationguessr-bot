@@ -17,6 +17,33 @@ root_router = Router()
 logger = logging.getLogger()
 
 
+def guess_facts_round():
+    with (
+        open("./data/dev/facts.json") as country_facts_file,
+        open("./data/dev/names.json") as country_names_file,
+    ):
+        country_names = json.load(country_names_file)
+
+        selected_country_codes = random.sample(
+            country_names.keys(), DEFAULT_OPTIONS_NUM
+        )
+        selected_correct_code = random.choice(selected_country_codes)
+        selected_country_facts = [
+            f"📍 {fact}"
+            for fact in reservoir_sampling(
+                json_fetch_country_facts(
+                    country_facts_file, CountryCode(code=selected_correct_code)
+                ),
+                DEFAULT_FACTS_NUM,
+            )
+        ]
+
+    country_options = [country_names.get(code) for code in selected_country_codes]
+    country_correct_option = country_names.get(selected_correct_code)
+
+    return selected_country_facts, country_options, country_correct_option
+
+
 @root_router.message(CommandStart())
 async def start_handler(message: types.Message, state: FSMContext) -> None:
     await state.set_state(BotState.select_game)
@@ -43,37 +70,18 @@ async def start_handler(message: types.Message, state: FSMContext) -> None:
 @root_router.message(BotState.select_game, F.text == "Guess from facts")
 async def start_guess_facts_game(message: types.Message, state: FSMContext) -> None:
     try:
-        with (
-            open("./data/dev/facts.json") as country_facts_file,
-            open("./data/dev/names.json") as country_names_file,
-        ):
-            country_names = json.load(country_names_file)
-
-            selected_country_codes = random.sample(
-                country_names.keys(), DEFAULT_OPTIONS_NUM
-            )
-            selected_correct_code = random.choice(selected_country_codes)
-            selected_country_facts = [
-                f"📍 {fact}"
-                for fact in reservoir_sampling(
-                    json_fetch_country_facts(
-                        country_facts_file, CountryCode(code=selected_correct_code)
-                    ),
-                    DEFAULT_FACTS_NUM,
-                )
-            ]
+        selected_country_facts, country_options, country_correct_option = (
+            guess_facts_round()
+        )
     except (FileNotFoundError, PermissionError, IsADirectoryError) as ex:
         logger.error(f"Failed to open files with country names and facts: {ex}")
         return
 
-    options = [country_names.get(code) for code in selected_country_codes]
-    correct_option = country_names.get(selected_correct_code)
-
     new_game_session = GameSession(
         lives_remained=DEFAULT_INIT_LIVES,
         current_score=0,
-        options=options,
-        correct_option=correct_option,
+        options=country_options,
+        correct_option=country_correct_option,
     )
 
     await state.set_state(BotState.playing_guess_facts)
@@ -92,7 +100,56 @@ async def start_guess_facts_game(message: types.Message, state: FSMContext) -> N
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [types.KeyboardButton(text=option) for option in batch]
-                for batch in batched(options, n=2)
+                for batch in batched(country_options, n=2)
+            ],
+            resize_keyboard=True,
+        ),
+    )
+
+
+@root_router.message(BotState.playing_guess_facts, F.text.regexp(r'^[^/].*'))  # Check if the message is not a command
+async def play_guess_facts_game(message: types.Message, state: FSMContext) -> None:
+    state_data = await state.get_data()
+    current_game_session = GameSession(**state_data)
+
+    if message.text is None or message.text not in current_game_session.options:
+        await message.answer(
+            "🤔 Oops! Looks like there was a mix-up with the entry. Remember, the trick is "
+            "to pick one of the options below. No worries, though! Let's tackle the next "
+            "question and keep the fun rolling. Onwards and upwards!"
+        )
+        current_game_session.lives_remained -= 1
+    elif message.text != current_game_session.correct_option:
+        await message.answer(
+            f"😰 Oops, close but not quite! The correct answer was '{current_game_session.correct_option}'. "
+            "Let's keep the energy up and dive into the next question - you've got this!"
+        )
+        current_game_session.lives_remained -= 1
+    else:
+        await message.answer(
+            "🌟 Absolutely brilliant! You nailed it! 🎉 Get ready to keep the streak "
+            "going with this next one – your next challenge awaits!"
+        )
+        current_game_session.current_score += 1
+
+    try:
+        selected_country_facts, country_options, country_correct_option = (
+            guess_facts_round()
+        )
+    except (FileNotFoundError, PermissionError, IsADirectoryError) as ex:
+        logger.error(f"Failed to open files with country names and facts: {ex}")
+        return
+
+    current_game_session.options = country_options
+    current_game_session.correct_option = country_correct_option
+
+    await state.update_data(**current_game_session.model_dump())
+    await message.answer(
+        "\n".join(selected_country_facts),
+        reply_markup=types.ReplyKeyboardMarkup(
+            keyboard=[
+                [types.KeyboardButton(text=option) for option in batch]
+                for batch in batched(country_options, n=2)
             ],
             resize_keyboard=True,
         ),
