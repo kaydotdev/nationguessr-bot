@@ -11,7 +11,14 @@ from fsm import BotState
 from models import CountryCode, json_fetch_country_facts
 from state import GameSession
 from utils import batched, reservoir_sampling, validate_and_fetch_scores
-from vars import DEFAULT_FACTS_NUM, DEFAULT_INIT_LIVES, DEFAULT_OPTIONS_NUM, TOP_SCORES
+from vars import (
+    COUNTRY_FACTS_FILE_LOCATION,
+    COUNTRY_NAMES_FILE_LOCATION,
+    DEFAULT_FACTS_NUM,
+    DEFAULT_INIT_LIVES,
+    DEFAULT_OPTIONS_NUM,
+    TOP_SCORES,
+)
 
 root_router = Router()
 logger = logging.getLogger()
@@ -19,8 +26,8 @@ logger = logging.getLogger()
 
 def guess_facts_round():
     with (
-        open("./data/dev/facts.json") as country_facts_file,
-        open("./data/dev/names.json") as country_names_file,
+        open(COUNTRY_FACTS_FILE_LOCATION) as country_facts_file,
+        open(COUNTRY_NAMES_FILE_LOCATION) as country_names_file,
     ):
         country_names = json.load(country_names_file)
 

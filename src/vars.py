@@ -5,4 +5,7 @@ DEFAULT_INIT_LIVES = 5
 DEFAULT_FACTS_NUM = 5
 DEFAULT_OPTIONS_NUM = 4
 
+COUNTRY_NAMES_FILE_LOCATION = "./data/dev/names.json"
+COUNTRY_FACTS_FILE_LOCATION = "./data/dev/facts.json"
+
 TOKEN = os.getenv("BOT_TOKEN") or ""
