@@ -11,14 +11,18 @@ from vars import TOKEN
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# Instantiate Bot, Dispatcher, and Router in the global scope, not in the handler function.
+# This avoids duplicating the Router instance in the Dispatcher, which prevents a `RuntimeError`.
+# See `include_router` method for more details:
+#
+# https://docs.aiogram.dev/en/latest/_modules/aiogram/dispatcher/router.html#Router.include_router
+bot = Bot(TOKEN, parse_mode=ParseMode.MARKDOWN)
+dp = Dispatcher(storage=state_storage)
+dp.include_router(root_router)
+
 
 async def main(update_event) -> None:
     update_obj = types.Update(**update_event)
-
-    bot = Bot(TOKEN, parse_mode=ParseMode.MARKDOWN)
-    dp = Dispatcher(storage=state_storage)
-    dp.include_router(root_router)
-
     await dp.feed_update(bot=bot, update=update_obj)
 
 

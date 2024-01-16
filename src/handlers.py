@@ -114,10 +114,13 @@ async def start_guess_facts_game(message: types.Message, state: FSMContext) -> N
     )
 
 
-@root_router.message(
-    BotState.playing_guess_facts, F.text.regexp(r"^[^/].*")
-)  # Check if the message is not a command
+@root_router.message(BotState.playing_guess_facts, F.text.regexp(r"^[^/].*"))
 async def play_guess_facts_game(message: types.Message, state: FSMContext) -> None:
+    """The handler considers any user input as valid only if it is a bot command,
+    i.e., it starts with a symbol '/', or an answer listed in the current game
+    session options; otherwise, it treats the input as invalid.
+    """
+
     state_data = await state.get_data()
     current_game_session = GameSession(**state_data)
 
