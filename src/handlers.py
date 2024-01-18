@@ -63,12 +63,10 @@ async def start_handler(message: types.Message, state: FSMContext) -> None:
         " command.\n🆑 To clear all your high score history use the /clear"
         " command.\n\nNow, let's see - which game would you like to play?",
         reply_markup=types.ReplyKeyboardMarkup(
-            keyboard=[
-                [
-                    types.KeyboardButton(text="Guess from facts"),
-                    types.KeyboardButton(text="Guess by flag"),
-                ]
-            ],
+            keyboard=[[
+                types.KeyboardButton(text="Guess from facts"),
+                types.KeyboardButton(text="Guess by flag"),
+            ]],
             resize_keyboard=True,
         ),
     )
@@ -195,9 +193,9 @@ async def score_handler(message: types.Message, state: FSMContext) -> None:
             " go? Let the games begin! 🚀"
         )
     else:
-        score_table = "\n".join([
-            f"{bold(timestamp)}: {score}" for timestamp, score in scores.items()
-        ])
+        score_table = "\n".join(
+            [f"{bold(timestamp)}: {score}" for timestamp, score in scores.items()]
+        )
         await message.answer(
             f"🌟 Wow! You've been on a roll! Check out your top {TOP_SCORES} scores"
             " shining on the leaderboard! Keep up the great work - can you beat your"

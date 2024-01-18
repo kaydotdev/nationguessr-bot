@@ -23,14 +23,12 @@ def empty_fsm_mock(request):
 
 @pytest.fixture(
     scope="function",
-    params=[
-        {
-            "scores": {
-                datetime(year=1970, month=1, day=1): 10,
-                datetime(year=1971, month=1, day=1): 0,
-            }
+    params=[{
+        "scores": {
+            datetime(year=1970, month=1, day=1): 10,
+            datetime(year=1971, month=1, day=1): 0,
         }
-    ],
+    }],
 )
 def non_empty_fsm_mock(request):
     return build_mock(request.param), request.param
