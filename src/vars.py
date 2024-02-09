@@ -5,6 +5,7 @@ DEFAULT_INIT_LIVES = 5
 DEFAULT_FACTS_NUM = 5
 DEFAULT_OPTIONS_NUM = 4
 
+TOKEN = os.getenv("VAR_TOKEN") or ""
 COUNTRY_NAMES_FILE_LOCATION = (
     os.getenv("VAR_COUNTRY_NAMES_FILE_LOCATION") or "./data/dev/names.json"
 )
@@ -12,4 +13,7 @@ COUNTRY_FACTS_FILE_LOCATION = (
     os.getenv("VAR_COUNTRY_FACTS_FILE_LOCATION") or "./data/dev/facts.json"
 )
 
-TOKEN = os.getenv("VAR_TOKEN") or ""
+AWS_ACCESS_KEY = os.getenv("VAR_AWS_ACCESS_KEY")
+AWS_SECRET_KEY = os.getenv("VAR_AWS_SECRET_KEY")
+AWS_FSM_TABLE_NAME = os.getenv("VAR_AWS_FSM_TABLE_NAME")
+AWS_REGION = os.getenv("VAR_AWS_REGION")
