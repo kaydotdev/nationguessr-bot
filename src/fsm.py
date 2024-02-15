@@ -30,15 +30,15 @@ class DynamoDBStorage(BaseStorage):
         if not access_key or not secret_key:
             raise AttributeError("No AWS credentials available")
 
-        self.access_key = access_key
-        self.secret_key = secret_key
-        self.table_name = table_name
-        self.region = region
+        self._access_key = access_key
+        self._secret_key = secret_key
+        self._table_name = table_name
+        self._region = region
 
-        self.service = "dynamodb"
-        self.host = f"{self.service}.{region}.amazonaws.com"
-        self.endpoint = f"https://{self.host}"
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self._service = "dynamodb"
+        self._host = f"{self._service}.{self._region}.amazonaws.com"
+        self._endpoint = f"https://{self._host}"
+        self._logger = logging.getLogger(self.__class__.__name__)
 
     def _build_authorization_header(
         self, request_body: str, amz_target: str
@@ -50,7 +50,7 @@ class DynamoDBStorage(BaseStorage):
         content_type = "application/x-amz-json-1.0"
         canonical_uri, canonical_querystring = "/", ""
         canonical_headers = (
-            f"content-type:{content_type}\nhost:{self.host}\n"
+            f"content-type:{content_type}\nhost:{self._host}\n"
             f"x-amz-date:{amz_date}\nx-amz-target:{amz_target}\n"
         )
         signed_headers = "content-type;host;x-amz-date;x-amz-target"
@@ -62,7 +62,7 @@ class DynamoDBStorage(BaseStorage):
         )
 
         algorithm = "AWS4-HMAC-SHA256"
-        credential_scope = f"{date_stamp}/{self.region}/{self.service}/aws4_request"
+        credential_scope = f"{date_stamp}/{self._region}/{self._service}/aws4_request"
         string_to_sign = (
             f"{algorithm}\n{amz_date}\n{credential_scope}\n"
             f"{hashlib.sha256(canonical_request.encode('utf-8')).hexdigest()}"
@@ -70,15 +70,15 @@ class DynamoDBStorage(BaseStorage):
 
         signing_key = reduce(
             lambda k, msg: hmac.digest(k, msg.encode("utf-8"), hashlib.sha256),
-            [date_stamp, self.region, self.service, "aws4_request"],
-            ("AWS4" + self.secret_key).encode("utf-8"),
+            [date_stamp, self._region, self._service, "aws4_request"],
+            ("AWS4" + self._secret_key).encode("utf-8"),
         )
         signature = hmac.new(
             signing_key, string_to_sign.encode("utf-8"), hashlib.sha256
         ).hexdigest()
 
         authorization_header = (
-            f"{algorithm} Credential={self.access_key}/{credential_scope},"
+            f"{algorithm} Credential={self._access_key}/{credential_scope},"
             f" SignedHeaders={signed_headers}, Signature={signature}"
         )
 
@@ -89,6 +89,32 @@ class DynamoDBStorage(BaseStorage):
             "Authorization": authorization_header,
         }
 
+    async def _update_table(self, amz_target: str, request_parameters: str) -> None:
+        request_headers = self._build_authorization_header(
+            request_parameters, amz_target
+        )
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                self._endpoint, data=request_parameters, headers=request_headers
+            ) as response:
+                raw_response = await response.text()
+
+                if response.status != 200:
+                    response_err_message = json.loads(raw_response).get("message", "")
+                    self._logger.error(
+                        f"Failed to update a state table with '{amz_target}' target in"
+                        f" the FSM storage: '{response_err_message}'"
+                    )
+                    raise DetailedAiogramError(
+                        "Failed to update a state table in the FSM storage"
+                    )
+
+                self._logger.debug(
+                    f"Successfully updated a state table with '{amz_target}' target in"
+                    " the FSM storage"
+                )
+
     async def set_state(self, key: StorageKey, state: StateType = None) -> None:
         state_key = {
             "chat_id": {"S": str(key.chat_id)},
@@ -98,44 +124,21 @@ class DynamoDBStorage(BaseStorage):
         if state is None:
             amz_target = "DynamoDB_20120810.DeleteItem"
             request_parameters = json.dumps({
-                "TableName": self.table_name,
+                "TableName": self._table_name,
                 "Key": {**state_key},
             })
         else:
             amz_target = "DynamoDB_20120810.PutItem"
             state_parsed = cast(str, state.state if isinstance(state, State) else state)
             request_parameters = json.dumps({
-                "TableName": self.table_name,
+                "TableName": self._table_name,
                 "Item": {
                     **state_key,
                     "state": {"S": state_parsed},
                 },
             })
 
-        request_headers = self._build_authorization_header(
-            request_parameters, amz_target
-        )
-
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                self.endpoint, data=request_parameters, headers=request_headers
-            ) as response:
-                raw_response = await response.text()
-
-                if response.status != 200:
-                    response_err_message = json.loads(raw_response).get("message", "")
-                    self.logger.error(
-                        "Failed to set a state in the FSM storage:"
-                        f" '{response_err_message}'."
-                    )
-
-                    raise DetailedAiogramError(
-                        "Failed to update user state in FSM storage"
-                    )
-                else:
-                    self.logger.debug(
-                        f"Updated new state in the FSM storage: '{state_key}'"
-                    )
+        await self._update_table(amz_target, request_parameters)
 
     async def get_state(self, key: StorageKey) -> Optional[str]:
         pass
