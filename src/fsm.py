@@ -7,14 +7,10 @@ from functools import reduce
 from typing import Any, Dict, Optional, cast
 
 import aiohttp
-from aiogram.exceptions import AiogramError
+from aiogram.exceptions import DetailedAiogramError
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.base import BaseStorage, StateType, StorageKey
 from vars import AWS_ACCESS_KEY, AWS_FSM_TABLE_NAME, AWS_REGION, AWS_SECRET_KEY
-
-
-class AiogramFsmError(AiogramError):
-    pass
 
 
 class BotState(StatesGroup):
@@ -40,7 +36,7 @@ class DynamoDBStorage(BaseStorage):
         self.region = region
 
         self.service = "dynamodb"
-        self.host = f"dynamodb.{region}.amazonaws.com"
+        self.host = f"{self.service}.{region}.amazonaws.com"
         self.endpoint = f"https://{self.host}"
         self.logger = logging.getLogger(self.__class__.__name__)
 
@@ -122,7 +118,9 @@ class DynamoDBStorage(BaseStorage):
                         f" '{response_err_message}'."
                     )
 
-                    raise AiogramFsmError
+                    raise DetailedAiogramError(
+                        "Failed to update user state in FSM storage"
+                    )
                 else:
                     self.logger.debug(
                         f"Updated new state in the FSM storage: '{new_state}'"
