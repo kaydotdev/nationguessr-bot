@@ -90,17 +90,28 @@ class DynamoDBStorage(BaseStorage):
         }
 
     async def set_state(self, key: StorageKey, state: StateType = None) -> None:
-        amz_target = "DynamoDB_20120810.PutItem"
-        state_parsed = cast(str, state.state if isinstance(state, State) else state)
-        new_state = {
+        state_key = {
             "chat_id": {"S": str(key.chat_id)},
             "user_id": {"S": str(key.user_id)},
-            "state": {"S": state_parsed},
         }
-        request_parameters = json.dumps({
-            "TableName": self.table_name,
-            "Item": new_state,
-        })
+
+        if state is None:
+            amz_target = "DynamoDB_20120810.DeleteItem"
+            request_parameters = json.dumps({
+                "TableName": self.table_name,
+                "Key": {**state_key},
+            })
+        else:
+            amz_target = "DynamoDB_20120810.PutItem"
+            state_parsed = cast(str, state.state if isinstance(state, State) else state)
+            request_parameters = json.dumps({
+                "TableName": self.table_name,
+                "Item": {
+                    **state_key,
+                    "state": {"S": state_parsed},
+                },
+            })
+
         request_headers = self._build_authorization_header(
             request_parameters, amz_target
         )
@@ -123,7 +134,7 @@ class DynamoDBStorage(BaseStorage):
                     )
                 else:
                     self.logger.debug(
-                        f"Updated new state in the FSM storage: '{new_state}'"
+                        f"Updated new state in the FSM storage: '{state_key}'"
                     )
 
     async def get_state(self, key: StorageKey) -> Optional[str]:
