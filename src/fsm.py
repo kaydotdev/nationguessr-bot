@@ -117,66 +117,124 @@ class DynamoDBStorage(BaseStorage):
 
         return response_body
 
-    async def set_state(self, key: StorageKey, state: StateType = None) -> None:
-        state_key = {
-            "chat_id": {"S": str(key.chat_id)},
-            "user_id": {"S": str(key.user_id)},
-        }
-
-        if state is None:
-            amz_target = "DynamoDB_20120810.DeleteItem"
-            request_parameters = json.dumps({
-                "TableName": self._table_name,
-                "Key": {**state_key},
-            })
-        else:
-            amz_target = "DynamoDB_20120810.PutItem"
-            state_parsed = cast(str, state.state if isinstance(state, State) else state)
-            request_parameters = json.dumps({
-                "TableName": self._table_name,
-                "Item": {
-                    **state_key,
-                    "state": {"S": state_parsed},
-                },
-            })
+    async def _create_empty_state(self, key: StorageKey) -> None:
+        amz_target = "DynamoDB_20120810.PutItem"
+        request_parameters = json.dumps({
+            "TableName": self._table_name,
+            "Item": {
+                "chat_id": {"S": str(key.chat_id)},
+                "user_id": {"S": str(key.user_id)},
+                "state_value": {"NULL": True},
+                "data_value": {"M": {}},
+            },
+        })
 
         await self._request_table(amz_target, request_parameters)
 
-    async def get_state(self, key: StorageKey) -> Optional[str]:
+    async def set_state(self, key: StorageKey, state: StateType = None) -> None:
+        self._logger.info(
+            f"User id={key.user_id} (chat_id={key.chat_id}) requested a state update"
+        )
+
+        amz_target = "DynamoDB_20120810.UpdateItem"
+        state_parsed = cast(str, state.state if isinstance(state, State) else state)
         request_parameters = json.dumps({
             "TableName": self._table_name,
             "Key": {
                 "chat_id": {"S": str(key.chat_id)},
                 "user_id": {"S": str(key.user_id)},
             },
+            "UpdateExpression": "set state_value = :val1",
+            "ExpressionAttributeValues": {
+                ":val1": (
+                    {"S": state_parsed} if state_parsed is not None else {"NULL": True}
+                ),
+            },
+        })
+
+        await self._request_table(amz_target, request_parameters)
+
+    async def get_state(self, key: StorageKey) -> Optional[str]:
+        self._logger.info(
+            f"User id={key.user_id} (chat_id={key.chat_id}) requested a state read"
+        )
+
+        amz_target = "DynamoDB_20120810.GetItem"
+        request_parameters = json.dumps({
+            "TableName": self._table_name,
+            "Key": {
+                "chat_id": {"S": str(key.chat_id)},
+                "user_id": {"S": str(key.user_id)},
+            },
+            "ProjectionExpression": "state_value",
             "ConsistentRead": True,
         })
-        amz_target = "DynamoDB_20120810.GetItem"
 
         response = await self._request_table(amz_target, request_parameters)
         response_body = json.loads(response)
-        response_table = response_body.get("ConsumedCapacity", {"TableName": None}).get(
-            "TableName"
-        )
 
-        if self._table_name != response_table:
-            raise DetailedAiogramError(
-                "A state table name does not match with response table name"
-            )
-        elif "Item" not in response_body:
-            raise DetailedAiogramError(
-                "Received an empty state data from the FSM storage"
-            )
+        if "Item" not in response_body:
+            await self._create_empty_state(key)
+            return None
 
-        response_item = response_body.get("Item", {"state": {"S": None}})
+        state_val = response_body.get("Item").get("state_value")
 
-        return response_item.get("state").get("S")
+        if state_val is None:
+            raise DetailedAiogramError("State attribute value cannot be empty")
+
+        return state_val.get("S")
 
     async def set_data(self, key: StorageKey, data: Dict[str, Any]) -> None:
-        pass
+        self._logger.info(
+            f"User id={key.user_id} (chat_id={key.chat_id}) requested a data update"
+        )
+
+        amz_target = "DynamoDB_20120810.UpdateItem"
+        request_parameters = json.dumps({
+            "TableName": self._table_name,
+            "Key": {
+                "chat_id": {"S": str(key.chat_id)},
+                "user_id": {"S": str(key.user_id)},
+            },
+            "UpdateExpression": "set data_value = :val1",
+            "ExpressionAttributeValues": {
+                ":val1": {"M": {k: {"S": json.dumps(v)} for k, v in data.items()}},
+            },
+        })
+
+        await self._request_table(amz_target, request_parameters)
 
     async def get_data(self, key: StorageKey) -> Dict[str, Any]:
-        pass
+        self._logger.info(
+            f"User id={key.user_id} (chat_id={key.chat_id}) requested a data read"
+        )
+
+        amz_target = "DynamoDB_20120810.GetItem"
+        request_parameters = json.dumps({
+            "TableName": self._table_name,
+            "Key": {
+                "chat_id": {"S": str(key.chat_id)},
+                "user_id": {"S": str(key.user_id)},
+            },
+            "ProjectionExpression": "data_value",
+            "ConsistentRead": True,
+        })
+
+        response = await self._request_table(amz_target, request_parameters)
+        response_body = json.loads(response)
+
+        if "Item" not in response_body:
+            await self._create_empty_state(key)
+            return {}
+
+        data_val = response_body.get("Item").get("data_value")
+
+        if data_val is None:
+            raise DetailedAiogramError("Data attribute value cannot be empty")
+        elif not isinstance(data_val, dict):
+            raise DetailedAiogramError("Data attribute value cannot be empty")
+
+        return {k: json.loads(v.get("S")) for k, v in data_val.get("M").items()}
 
     async def close(self) -> None:
         pass
