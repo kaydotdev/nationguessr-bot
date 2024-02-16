@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import hashlib
 import hmac
@@ -39,6 +40,8 @@ class DynamoDBStorage(BaseStorage):
         self._host = f"{self._service}.{self._region}.amazonaws.com"
         self._endpoint = f"https://{self._host}"
         self._logger = logging.getLogger(self.__class__.__name__)
+        self._session_lock = asyncio.Lock()
+        self._session = None
 
     def _build_authorization_header(
         self, request_body: str, amz_target: str
@@ -94,21 +97,24 @@ class DynamoDBStorage(BaseStorage):
             request_parameters, amz_target
         )
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                self._endpoint, data=request_parameters, headers=request_headers
-            ) as response:
-                response_body = await response.text()
+        if not self._session:
+            async with self._session_lock:
+                self._session = aiohttp.ClientSession()
 
-                if response.status != 200:
-                    response_err_message = json.loads(response_body).get("message", "")
-                    self._logger.error(
-                        f"Failed to request a state table with '{amz_target}' target in"
-                        f" the FSM storage: '{response_err_message}'"
-                    )
-                    raise DetailedAiogramError(
-                        "Failed to request a state table in the FSM storage"
-                    )
+        async with self._session.post(
+            self._endpoint, data=request_parameters, headers=request_headers
+        ) as response:
+            response_body = await response.text()
+
+            if response.status != 200:
+                response_err_message = json.loads(response_body).get("message", "")
+                self._logger.error(
+                    f"Failed to request a state table with '{amz_target}' target in"
+                    f" the FSM storage: '{response_err_message}'"
+                )
+                raise DetailedAiogramError(
+                    "Failed to request a state table in the FSM storage"
+                )
 
         self._logger.debug(
             f"Successfully requested a state table with '{amz_target}' target in"
@@ -237,7 +243,10 @@ class DynamoDBStorage(BaseStorage):
         return {k: json.loads(v.get("S")) for k, v in data_val.get("M").items()}
 
     async def close(self) -> None:
-        pass
+        self._logger.debug("Closing HTTP client session")
+
+        if self._session is not None and not self._session.closed:
+            await self._session.close()
 
 
 state_storage = DynamoDBStorage(
