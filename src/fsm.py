@@ -89,7 +89,7 @@ class DynamoDBStorage(BaseStorage):
             "Authorization": authorization_header,
         }
 
-    async def _update_table(self, amz_target: str, request_parameters: str) -> None:
+    async def _request_table(self, amz_target: str, request_parameters: str) -> str:
         request_headers = self._build_authorization_header(
             request_parameters, amz_target
         )
@@ -98,22 +98,24 @@ class DynamoDBStorage(BaseStorage):
             async with session.post(
                 self._endpoint, data=request_parameters, headers=request_headers
             ) as response:
-                raw_response = await response.text()
+                response_body = await response.text()
 
                 if response.status != 200:
-                    response_err_message = json.loads(raw_response).get("message", "")
+                    response_err_message = json.loads(response_body).get("message", "")
                     self._logger.error(
-                        f"Failed to update a state table with '{amz_target}' target in"
+                        f"Failed to request a state table with '{amz_target}' target in"
                         f" the FSM storage: '{response_err_message}'"
                     )
                     raise DetailedAiogramError(
-                        "Failed to update a state table in the FSM storage"
+                        "Failed to request a state table in the FSM storage"
                     )
 
-                self._logger.debug(
-                    f"Successfully updated a state table with '{amz_target}' target in"
-                    " the FSM storage"
-                )
+        self._logger.debug(
+            f"Successfully requested a state table with '{amz_target}' target in"
+            " the FSM storage"
+        )
+
+        return response_body
 
     async def set_state(self, key: StorageKey, state: StateType = None) -> None:
         state_key = {
@@ -138,10 +140,37 @@ class DynamoDBStorage(BaseStorage):
                 },
             })
 
-        await self._update_table(amz_target, request_parameters)
+        await self._request_table(amz_target, request_parameters)
 
     async def get_state(self, key: StorageKey) -> Optional[str]:
-        pass
+        request_parameters = json.dumps({
+            "TableName": self._table_name,
+            "Key": {
+                "chat_id": {"S": str(key.chat_id)},
+                "user_id": {"S": str(key.user_id)},
+            },
+            "ConsistentRead": True,
+        })
+        amz_target = "DynamoDB_20120810.GetItem"
+
+        response = await self._request_table(amz_target, request_parameters)
+        response_body = json.loads(response)
+        response_table = response_body.get("ConsumedCapacity", {"TableName": None}).get(
+            "TableName"
+        )
+
+        if self._table_name != response_table:
+            raise DetailedAiogramError(
+                "A state table name does not match with response table name"
+            )
+        elif "Item" not in response_body:
+            raise DetailedAiogramError(
+                "Received an empty state data from the FSM storage"
+            )
+
+        response_item = response_body.get("Item", {"state": {"S": None}})
+
+        return response_item.get("state").get("S")
 
     async def set_data(self, key: StorageKey, data: Dict[str, Any]) -> None:
         pass

@@ -175,7 +175,7 @@ async def play_guess_facts_game(message: types.Message, state: FSMContext) -> No
     )
 )
 async def restart_handler(message: types.Message, state: FSMContext) -> None:
-    await state.set_state(state=None)
+    await state.set_state(BotState.select_game)
     await message.answer("TODO: Restart command.")
 
 
