@@ -138,7 +138,7 @@ class DynamoDBStorage(BaseStorage):
         await self._request_table(amz_target, request_parameters)
 
     async def set_state(self, key: StorageKey, state: StateType = None) -> None:
-        self._logger.info(
+        self._logger.debug(
             f"User id={key.user_id} (chat_id={key.chat_id}) requested a state update"
         )
 
@@ -161,7 +161,7 @@ class DynamoDBStorage(BaseStorage):
         await self._request_table(amz_target, request_parameters)
 
     async def get_state(self, key: StorageKey) -> Optional[str]:
-        self._logger.info(
+        self._logger.debug(
             f"User id={key.user_id} (chat_id={key.chat_id}) requested a state read"
         )
 
@@ -191,7 +191,7 @@ class DynamoDBStorage(BaseStorage):
         return state_val.get("S")
 
     async def set_data(self, key: StorageKey, data: Dict[str, Any]) -> None:
-        self._logger.info(
+        self._logger.debug(
             f"User id={key.user_id} (chat_id={key.chat_id}) requested a data update"
         )
 
@@ -211,7 +211,7 @@ class DynamoDBStorage(BaseStorage):
         await self._request_table(amz_target, request_parameters)
 
     async def get_data(self, key: StorageKey) -> Dict[str, Any]:
-        self._logger.info(
+        self._logger.debug(
             f"User id={key.user_id} (chat_id={key.chat_id}) requested a data read"
         )
 
