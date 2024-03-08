@@ -4,7 +4,7 @@ COPY requirements.txt ./
 
 RUN pip install -r requirements.txt
 
-COPY src/ ./
-COPY data/prod/ ./data
+COPY ./src/ ./
+COPY ./data/data.db ./
 
 CMD [ "lambda.handler" ]

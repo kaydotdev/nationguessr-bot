@@ -6,12 +6,7 @@ DEFAULT_FACTS_NUM = 5
 DEFAULT_OPTIONS_NUM = 4
 
 TOKEN = os.getenv("VAR_TOKEN") or ""
-COUNTRY_NAMES_FILE_LOCATION = (
-    os.getenv("VAR_COUNTRY_NAMES_FILE_LOCATION") or "./data/dev/names.json"
-)
-COUNTRY_FACTS_FILE_LOCATION = (
-    os.getenv("VAR_COUNTRY_FACTS_FILE_LOCATION") or "./data/dev/facts.json"
-)
+SQLITE_DB_PATH = os.getenv("VAR_SQLITE_DB_PATH") or "./data/data.db"
 
 AWS_ACCESS_KEY = os.getenv("VAR_AWS_ACCESS_KEY")
 AWS_SECRET_KEY = os.getenv("VAR_AWS_SECRET_KEY")

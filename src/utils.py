@@ -1,31 +1,10 @@
-import random
 from itertools import islice
-from typing import Generator, Iterable, TypeVar
+from sqlite3 import Cursor
+from typing import Generator, Iterable, List, TypeVar
 
-from aiogram.fsm.context import FSMContext
-from state import ScoreBoard
+from models import BotReplicaView, CountryFactView, CountryNameView
 
 T = TypeVar("T")
-
-
-async def validate_and_fetch_scores(state: FSMContext) -> ScoreBoard:
-    """Reads and validates user score history from an abstract key-value database.
-    History records are queried for a specific active user by ID.
-
-    Args:
-        state (FSMContext): abstract application state storage.
-
-    Returns:
-        ScoreBoard: Validated user score history.
-
-    Raises:
-        ValidationError: Failed to validate FSM state due to the possible data corruption.
-    """
-
-    state_data = await state.get_data()
-    score_data = state_data.get("scores", {})
-
-    return ScoreBoard(records=score_data)
 
 
 def batched(iterable: Iterable[T], n: int) -> Generator[tuple, None, None]:
@@ -60,35 +39,74 @@ def batched(iterable: Iterable[T], n: int) -> Generator[tuple, None, None]:
         yield batch
 
 
-def reservoir_sampling(iterator: Iterable[T], n: int) -> Generator[T, None, None]:
-    """Performs reservoir sampling over an iterator and returns another iterator
-    yielding a random subset of n items from the input iterator. Sampling over
-    the iterator allows us to work with big sets of data without allocating them
-    into memory, for instance, using lists.
-
-    Args:
-        iterator (Iterable): An iterator for the input data.
-        n (int): Number of items in the output iterator.
-
-    Yields:
-        Items from a random subset of the input iterator.
-
-    Example:
-        >>> list(reservoir_sampling(iter(range(100)), 10))
-        [66, 83, 78, 56, 35, 39, 36, 72, 21, 79]
+def select_bot_replica(_cursor: Cursor, _key: str) -> BotReplicaView:
     """
 
-    reservoir = []  # Initialize an empty iterator for the reservoir
+    Args:
+        _cursor:
+        _key:
 
-    for i, item in enumerate(iterator):
-        if i < n:
-            reservoir.append(item)  # Fill the reservoir array with the first n items
-        else:
-            j = random.randint(0, i)
+    Returns:
 
-            if j < n:
-                reservoir[j] = (
-                    item  # Randomly replace elements in the reservoir with a decreasing probability.
-                )
+    """
 
-    yield from reservoir
+    _cursor.execute(
+        """
+        SELECT id, key, replica FROM bot_replicas
+        WHERE key = :key ORDER BY RANDOM() LIMIT 1;
+    """,
+        {"key": _key},
+    )
+
+    row = _cursor.fetchone()
+
+    if row is None:
+        err_msg = f"No replica found for key: {_key}"
+        raise ValueError(err_msg)
+
+    _id, _key, _replica = row
+    return BotReplicaView(id=_id, key=_key, replica=_replica)
+
+
+def select_random_country_options(_cursor: Cursor, _size: int) -> List[CountryNameView]:
+    _cursor.execute(
+        """
+        SELECT id, code, name FROM country_names
+        ORDER BY RANDOM() LIMIT :size;
+    """,
+        {"size": _size},
+    )
+
+    return [
+        CountryNameView(id=_id, code=_code, name=_name)
+        for _id, _code, _name in _cursor.fetchall()
+    ]
+
+
+def select_random_country_facts(
+    _cursor: Cursor, _name: str, _size: int
+) -> List[CountryFactView]:
+    """
+
+    Args:
+        _cursor:
+        _name:
+        _size:
+
+    Returns:
+
+    """
+
+    _cursor.execute(
+        """
+        SELECT cf.id, cf.tags, cf.content FROM country_facts cf
+        JOIN country_names cn on cf.country_id = cn.id
+        WHERE cn.name = :name ORDER BY RANDOM() LIMIT :size;
+    """,
+        {"name": _name, "size": _size},
+    )
+
+    return [
+        CountryFactView(id=_id, tags=_tags.split("|"), content=_content)
+        for _id, _tags, _content in _cursor.fetchall()
+    ]
