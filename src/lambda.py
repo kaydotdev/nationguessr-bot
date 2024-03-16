@@ -1,12 +1,13 @@
 import asyncio
 import json
 import logging
+import sqlite3
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from fsm import state_storage
 from handlers import root_router
-from vars import TOKEN
+from vars import SQLITE_DB_PATH, TOKEN
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -22,17 +23,20 @@ dp.include_router(root_router)
 
 
 async def main(update_event) -> None:
-    update_obj = types.Update(**update_event)
-    await dp.feed_update(bot=bot, update=update_obj)
+    with sqlite3.connect(SQLITE_DB_PATH) as conn:
+        update_obj = types.Update(**update_event)
+        await dp.feed_update(bot=bot, update=update_obj, db_connection=conn)
 
 
 def handler(event, context):
     update_event = json.loads(event.get("body", "{}"))
     loop = asyncio.get_event_loop()
 
+    logger.debug(f"Received an update event: {update_event}")
+
     if not TOKEN:
         logger.error(
-            "API Token is empty or invalid. Set it in `BOT_TOKEN` environment variable."
+            "API Token is empty or invalid. Set it in `BOT_TOKEN` environment variable"
         )
         return {"statusCode": 400}
 

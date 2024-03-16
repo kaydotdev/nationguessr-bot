@@ -19,7 +19,6 @@ from vars import (
     DEFAULT_FACTS_NUM,
     DEFAULT_INIT_LIVES,
     DEFAULT_OPTIONS_NUM,
-    SQLITE_DB_PATH,
     TOP_SCORES,
 )
 
@@ -28,36 +27,43 @@ logger = logging.getLogger()
 
 
 @root_router.message(CommandStart())
-async def start_handler(message: types.Message, state: FSMContext) -> None:
-    with sqlite3.connect(SQLITE_DB_PATH) as conn:
-        cursor = conn.cursor()
-        intro_replica = select_bot_replica(cursor, "INTRO").replica
+async def start_handler(
+    message: types.Message, state: FSMContext, db_connection: sqlite3.Connection
+) -> None:
+    logger.info(
+        f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /start"
+        " command"
+    )
 
-        await state.set_state(BotState.select_game)
-        await message.answer(
-            intro_replica,
-            reply_markup=types.ReplyKeyboardMarkup(
-                keyboard=[[
-                    types.KeyboardButton(text="🔍 Guess from Facts"),
-                    types.KeyboardButton(text="🚩 Guess by Flag"),
-                ]],
-                resize_keyboard=True,
-            ),
-        )
+    cursor = db_connection.cursor()
+    intro_replica = select_bot_replica(cursor, "INTRO").replica
+
+    await state.set_state(BotState.select_game)
+    await message.answer(
+        intro_replica,
+        reply_markup=types.ReplyKeyboardMarkup(
+            keyboard=[[
+                types.KeyboardButton(text="🔍 Guess from Facts"),
+                types.KeyboardButton(text="🚩 Guess by Flag"),
+            ]],
+            resize_keyboard=True,
+        ),
+    )
 
 
 @root_router.message(BotState.select_game, F.text == "🔍 Guess from Facts")
-async def start_guess_facts_game(message: types.Message, state: FSMContext) -> None:
-    with sqlite3.connect(SQLITE_DB_PATH) as conn:
-        cursor = conn.cursor()
-        country_options = [
-            country.name
-            for country in select_random_country_options(cursor, DEFAULT_OPTIONS_NUM)
-        ]
-        country_correct_option = random.choice(country_options)
-        selected_country_facts = select_random_country_facts(
-            cursor, country_correct_option, DEFAULT_FACTS_NUM
-        )
+async def start_guess_facts_game(
+    message: types.Message, state: FSMContext, db_connection: sqlite3.Connection
+) -> None:
+    cursor = db_connection.cursor()
+    country_options = [
+        country.name
+        for country in select_random_country_options(cursor, DEFAULT_OPTIONS_NUM)
+    ]
+    country_correct_option = random.choice(country_options)
+    selected_country_facts = select_random_country_facts(
+        cursor, country_correct_option, DEFAULT_FACTS_NUM
+    )
 
     new_game_session = GameSession(
         lives_remained=DEFAULT_INIT_LIVES,
@@ -90,7 +96,9 @@ async def start_guess_facts_game(message: types.Message, state: FSMContext) -> N
 
 
 @root_router.message(BotState.playing_guess_facts, F.text.regexp(r"^[^/].*"))
-async def play_guess_facts_game(message: types.Message, state: FSMContext) -> None:
+async def play_guess_facts_game(
+    message: types.Message, state: FSMContext, db_connection: sqlite3.Connection
+) -> None:
     """The handler considers any user input as valid only if it is a bot command,
     i.e., it starts with a symbol '/', or an answer listed in the current game
     session options; otherwise, it treats the input as invalid.
@@ -98,39 +106,37 @@ async def play_guess_facts_game(message: types.Message, state: FSMContext) -> No
 
     state_data = await state.get_data()
     current_game_session = GameSession(**state_data)
+    cursor = db_connection.cursor()
 
-    with sqlite3.connect(SQLITE_DB_PATH) as conn:
-        cursor = conn.cursor()
-
-        if message.text is None or message.text not in current_game_session.options:
-            unavailable_option_replica = select_bot_replica(
-                cursor, "GAME_ROUND_NOT_IN_OPTIONS"
-            ).replica
-            await message.answer(unavailable_option_replica)
-            current_game_session.lives_remained -= 1
-        elif message.text != current_game_session.correct_option:
-            wrong_answer_replica = select_bot_replica(
-                cursor, "GAME_ROUND_WRONG_ANSWER"
-            ).replica
-            await message.answer(
-                wrong_answer_replica.format(current_game_session.correct_option)
-            )
-            current_game_session.lives_remained -= 1
-        else:
-            correct_answer_replica = select_bot_replica(
-                cursor, "GAME_ROUND_CORRECT_ANSWER"
-            ).replica
-            await message.answer(correct_answer_replica)
-            current_game_session.current_score += 1
-
-        country_options = [
-            country.name
-            for country in select_random_country_options(cursor, DEFAULT_OPTIONS_NUM)
-        ]
-        country_correct_option = random.choice(country_options)
-        selected_country_facts = select_random_country_facts(
-            cursor, country_correct_option, DEFAULT_FACTS_NUM
+    if message.text is None or message.text not in current_game_session.options:
+        unavailable_option_replica = select_bot_replica(
+            cursor, "GAME_ROUND_NOT_IN_OPTIONS"
+        ).replica
+        await message.answer(unavailable_option_replica)
+        current_game_session.lives_remained -= 1
+    elif message.text != current_game_session.correct_option:
+        wrong_answer_replica = select_bot_replica(
+            cursor, "GAME_ROUND_WRONG_ANSWER"
+        ).replica
+        await message.answer(
+            wrong_answer_replica.format(current_game_session.correct_option)
         )
+        current_game_session.lives_remained -= 1
+    else:
+        correct_answer_replica = select_bot_replica(
+            cursor, "GAME_ROUND_CORRECT_ANSWER"
+        ).replica
+        await message.answer(correct_answer_replica)
+        current_game_session.current_score += 1
+
+    country_options = [
+        country.name
+        for country in select_random_country_options(cursor, DEFAULT_OPTIONS_NUM)
+    ]
+    country_correct_option = random.choice(country_options)
+    selected_country_facts = select_random_country_facts(
+        cursor, country_correct_option, DEFAULT_FACTS_NUM
+    )
 
     current_game_session.options = country_options
     current_game_session.correct_option = country_correct_option
@@ -156,7 +162,12 @@ async def play_guess_facts_game(message: types.Message, state: FSMContext) -> No
         )
     )
 )
-async def finish_handler(message: types.Message, state: FSMContext) -> None:
+async def restart_handler(message: types.Message, state: FSMContext) -> None:
+    logger.info(
+        f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /restart"
+        " command"
+    )
+
     await state.set_state(BotState.select_game)
     await message.answer(
         "🎉 All clear! Your high score board is now a clean slate, ready for new"
@@ -175,27 +186,35 @@ async def finish_handler(message: types.Message, state: FSMContext) -> None:
 @root_router.message(
     Command(BotCommand(command="score", description="View your top score in quiz"))
 )
-async def score_handler(message: types.Message, state: FSMContext) -> None:
+async def score_handler(
+    message: types.Message, state: FSMContext, db_connection: sqlite3.Connection
+) -> None:
+    logger.info(
+        f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /score"
+        " command"
+    )
+
     state_data = await state.get_data()
     score_data = state_data.get("scores", {})
     scores = ScoreBoard(records=score_data)
+    cursor = db_connection.cursor()
 
     if len(scores.records) == 0:
         await message.answer(
             "🌟 Your scoreboard is a blank canvas waiting to be filled with your"
             " achievements! Dive into some games and start racking up those scores."
-            " Each game you play adds a new high score to your list. How high can you"
-            " go? Let the games begin! 🚀",
+            " Each game you play adds a new high score to your list. How high can"
+            " you go? Let the games begin! 🚀",
             reply_markup=types.ReplyKeyboardRemove(),
         )
     else:
-        score_table = "\n".join(
-            [f"{bold(timestamp)}: {score}" for timestamp, score in scores.items()]
-        )
+        show_scoreboard_replica = select_bot_replica(cursor, "SHOW_SCOREBOARD").replica
+        score_table = "\n".join([
+            f"{bold(timestamp.strftime('%m/%d/%Y, %H:%M:%S'))}: {score}"
+            for timestamp, score in scores.records.items()
+        ])
         await message.answer(
-            f"🌟 Wow! You've been on a roll! Check out your top {TOP_SCORES} scores"
-            " shining on the leaderboard! Keep up the great work - can you beat your"
-            f" own records? 🚀\n\n{score_table}",
+            show_scoreboard_replica.format(TOP_SCORES, score_table),
             reply_markup=types.ReplyKeyboardRemove(),
         )
 
@@ -203,11 +222,16 @@ async def score_handler(message: types.Message, state: FSMContext) -> None:
 @root_router.message(
     Command(BotCommand(command="clear", description="Clear your score table"))
 )
-async def clear_handler(message: types.Message, state: FSMContext) -> None:
-    await state.clear()
-    await message.answer(
-        "🎉 All clear! Your high score board is now a clean slate, ready for new"
-        " victories. Hit the /start command to dive into a new game and set some"
-        " impressive new records!",
-        reply_markup=types.ReplyKeyboardRemove(),
+async def clear_handler(
+    message: types.Message, state: FSMContext, db_connection: sqlite3.Connection
+) -> None:
+    logger.info(
+        f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /clear"
+        " command"
     )
+
+    cursor = db_connection.cursor()
+    clear_replica = select_bot_replica(cursor, "CLEAR_SCORES").replica
+
+    await state.clear()
+    await message.answer(clear_replica, reply_markup=types.ReplyKeyboardRemove())
