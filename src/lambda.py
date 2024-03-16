@@ -24,8 +24,14 @@ dp.include_router(root_router)
 
 async def main(update_event) -> None:
     with sqlite3.connect(SQLITE_DB_PATH) as conn:
+        logger.debug(
+            f"Successfully created DB connection instance from file: '{SQLITE_DB_PATH}'"
+        )
+
         update_obj = types.Update(**update_event)
         await dp.feed_update(bot=bot, update=update_obj, db_connection=conn)
+
+        logger.debug("Closing DB connection instance")
 
 
 def handler(event, context):
