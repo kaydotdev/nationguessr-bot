@@ -7,6 +7,7 @@ DEFAULT_OPTIONS_NUM = 4
 
 TOKEN = os.getenv("VAR_TOKEN") or ""
 SQLITE_DB_PATH = os.getenv("VAR_SQLITE_DB_PATH") or "./data/data.db"
+LOGGING_LEVEL = os.getenv("VAR_LOGGING_LEVEL") or "INFO"
 
 AWS_ACCESS_KEY = os.getenv("VAR_AWS_ACCESS_KEY")
 AWS_SECRET_KEY = os.getenv("VAR_AWS_SECRET_KEY")

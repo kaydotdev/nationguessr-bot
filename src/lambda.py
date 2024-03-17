@@ -7,10 +7,10 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from fsm import state_storage
 from handlers import root_router
-from vars import SQLITE_DB_PATH, TOKEN
+from vars import LOGGING_LEVEL, SQLITE_DB_PATH, TOKEN
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+logger.setLevel(LOGGING_LEVEL)
 
 # Instantiate Bot, Dispatcher, and Router in the global scope, not in the handler function.
 # This avoids duplicating the Router instance in the Dispatcher, which prevents a `RuntimeError`.
