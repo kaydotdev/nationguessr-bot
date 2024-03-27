@@ -1,10 +1,10 @@
 FROM public.ecr.aws/lambda/python:3.10
 
-COPY requirements.txt ./
-
+COPY ./src/requirements.txt ./
 RUN pip install -r requirements.txt
 
-COPY ./src/ ./
+COPY ./src/nationguessr ./nationguessr
+COPY ./src/lambda.py ./lambda.py
 COPY ./data/data.db ./
 
 CMD [ "lambda.handler" ]

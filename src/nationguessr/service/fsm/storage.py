@@ -9,15 +9,8 @@ from typing import Any, Dict, Optional, cast
 
 import aiohttp
 from aiogram.exceptions import DetailedAiogramError
-from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.state import State
 from aiogram.fsm.storage.base import BaseStorage, StateType, StorageKey
-from vars import AWS_ACCESS_KEY, AWS_FSM_TABLE_NAME, AWS_REGION, AWS_SECRET_KEY
-
-
-class BotState(StatesGroup):
-    select_game = State()
-    playing_guess_facts = State()
-    playing_guess_flag = State()
 
 
 class DynamoDBStorage(BaseStorage):
@@ -247,8 +240,3 @@ class DynamoDBStorage(BaseStorage):
 
         if self._session is not None and not self._session.closed:
             await self._session.close()
-
-
-state_storage = DynamoDBStorage(
-    AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_FSM_TABLE_NAME, AWS_REGION
-)

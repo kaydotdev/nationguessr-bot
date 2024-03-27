@@ -29,7 +29,6 @@ ignore = ["E501", "EM101"]
 minversion = 7.4
 addopts = "-ra -q"
 pythonpath = "src"
-testpaths = ["tests"]
 
 [build-system]
 requires = ["poetry-core"]

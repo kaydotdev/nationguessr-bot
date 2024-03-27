@@ -2,7 +2,7 @@ from itertools import islice
 from sqlite3 import Cursor
 from typing import Generator, Iterable, List, TypeVar
 
-from models import BotReplicaView, CountryFactView, CountryNameView
+from ..data.models import BotReplicaView, CountryFactView, CountryNameView
 
 T = TypeVar("T")
 

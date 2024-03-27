@@ -11,24 +11,24 @@ ci: lint test
 .PHONY: lint
 # Verify proper formatting for Python files
 lint:
-	black --diff --check src/ tests/ -q
+	black --diff --check src/ -q
 	ruff check .
 
 .PHONY: format
 # Automatic fix linting errors for all Python files
 format:
-	black src/ tests/ -q
+	black src/ -q
 	ruff check --fix .
 
 .PHONY: test
 # Run all project test suites
 test:
-	pytest tests/
+	pytest src/tests/
 
 .PHONY: requirements
 # Export project dependencies in `requirements.txt` format for the virtual environments
 requirements:
-	poetry export -f requirements.txt --without=dev --without-hashes --without-urls --output requirements.txt
+	poetry export -f requirements.txt --without=dev --without-hashes --without-urls --output ./src/requirements.txt
 
 .PHONY: serve
 # Run Telegram bot script in polling mode

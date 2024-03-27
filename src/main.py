@@ -3,29 +3,36 @@ import logging
 import sqlite3
 import sys
 
+import nationguessr.app.settings as settings
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
-from fsm import state_storage
-from handlers import root_router
-from vars import LOGGING_LEVEL, SQLITE_DB_PATH, TOKEN
+from nationguessr.app.handlers import root_router
+from nationguessr.service.fsm.storage import DynamoDBStorage
 
 logger = logging.getLogger()
-logger.setLevel(LOGGING_LEVEL)
+logger.setLevel(settings.LOGGING_LEVEL)
 
 
 async def main():
-    if not TOKEN:
+    if not settings.TOKEN:
         logger.error(
             "API Token is empty or invalid. Set it in `BOT_TOKEN` environment variable"
         )
         sys.exit(1)
 
-    with sqlite3.connect(SQLITE_DB_PATH) as conn:
+    with sqlite3.connect(settings.SQLITE_DB_PATH) as conn:
         logger.debug(
-            f"Successfully created DB connection instance from file: '{SQLITE_DB_PATH}'"
+            "Successfully created DB connection instance from file:"
+            f" '{settings.SQLITE_DB_PATH}'"
         )
 
-        bot = Bot(TOKEN, parse_mode=ParseMode.MARKDOWN)
+        state_storage = DynamoDBStorage(
+            settings.AWS_ACCESS_KEY,
+            settings.AWS_SECRET_KEY,
+            settings.AWS_FSM_TABLE_NAME,
+            settings.AWS_REGION,
+        )
+        bot = Bot(settings.TOKEN, parse_mode=ParseMode.MARKDOWN)
         dp = Dispatcher(storage=state_storage)
         dp.include_router(root_router)
 
@@ -35,5 +42,5 @@ async def main():
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=LOGGING_LEVEL, stream=sys.stdout)
+    logging.basicConfig(level=settings.LOGGING_LEVEL, stream=sys.stdout)
     asyncio.run(main())

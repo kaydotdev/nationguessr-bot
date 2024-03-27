@@ -7,15 +7,16 @@ from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.types.bot_command import BotCommand
 from aiogram.utils.markdown import bold
-from fsm import BotState
-from models import GameSession, ScoreBoard
-from utils import (
+
+from ..data.models import GameSession, ScoreBoard
+from ..service.fsm.state import BotState
+from ..service.utils import (
     batched,
     select_bot_replica,
     select_random_country_facts,
     select_random_country_options,
 )
-from vars import (
+from .settings import (
     DEFAULT_FACTS_NUM,
     DEFAULT_INIT_LIVES,
     DEFAULT_OPTIONS_NUM,
@@ -76,11 +77,12 @@ async def start_guess_facts_game(
     await state.update_data(**new_game_session.model_dump())
     await message.answer(
         "🌟 Get ready for an exciting challenge! In this game, I'll share"
-        f" {DEFAULT_FACTS_NUM} intriguing and unique facts about a mystery country."
-        f" Your task? Guess the right country from {DEFAULT_OPTIONS_NUM} options - but"
-        f" there's only one correct answer!\n\nYou've got {DEFAULT_INIT_LIVES}❤️"
-        " attempts to prove your skills. Aim high and see how high you can score! Are"
-        " you up for the challenge? Let's go! 🚀"
+        f" {DEFAULT_FACTS_NUM} intriguing and unique facts about a mystery"
+        " country. Your task? Guess the right country from"
+        f" {DEFAULT_OPTIONS_NUM} options - but there's only one correct"
+        f" answer!\n\nYou've got {DEFAULT_INIT_LIVES}❤️ attempts to prove your"
+        " skills. Aim high and see how high you can score! Are you up for the"
+        " challenge? Let's go! 🚀"
     )
 
     await message.answer(
