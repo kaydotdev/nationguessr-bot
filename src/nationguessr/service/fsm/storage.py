@@ -118,15 +118,17 @@ class DynamoDBStorage(BaseStorage):
 
     async def _create_empty_state(self, key: StorageKey) -> None:
         amz_target = "DynamoDB_20120810.PutItem"
-        request_parameters = json.dumps({
-            "TableName": self._table_name,
-            "Item": {
-                "chat_id": {"S": str(key.chat_id)},
-                "user_id": {"S": str(key.user_id)},
-                "state_value": {"NULL": True},
-                "data_value": {"M": {}},
-            },
-        })
+        request_parameters = json.dumps(
+            {
+                "TableName": self._table_name,
+                "Item": {
+                    "chat_id": {"S": str(key.chat_id)},
+                    "user_id": {"S": str(key.user_id)},
+                    "state_value": {"NULL": True},
+                    "data_value": {"M": {}},
+                },
+            }
+        )
 
         await self._request_table(amz_target, request_parameters)
 
@@ -137,19 +139,23 @@ class DynamoDBStorage(BaseStorage):
 
         amz_target = "DynamoDB_20120810.UpdateItem"
         state_parsed = cast(str, state.state if isinstance(state, State) else state)
-        request_parameters = json.dumps({
-            "TableName": self._table_name,
-            "Key": {
-                "chat_id": {"S": str(key.chat_id)},
-                "user_id": {"S": str(key.user_id)},
-            },
-            "UpdateExpression": "set state_value = :val1",
-            "ExpressionAttributeValues": {
-                ":val1": (
-                    {"S": state_parsed} if state_parsed is not None else {"NULL": True}
-                ),
-            },
-        })
+        request_parameters = json.dumps(
+            {
+                "TableName": self._table_name,
+                "Key": {
+                    "chat_id": {"S": str(key.chat_id)},
+                    "user_id": {"S": str(key.user_id)},
+                },
+                "UpdateExpression": "set state_value = :val1",
+                "ExpressionAttributeValues": {
+                    ":val1": (
+                        {"S": state_parsed}
+                        if state_parsed is not None
+                        else {"NULL": True}
+                    ),
+                },
+            }
+        )
 
         await self._request_table(amz_target, request_parameters)
 
@@ -159,15 +165,17 @@ class DynamoDBStorage(BaseStorage):
         )
 
         amz_target = "DynamoDB_20120810.GetItem"
-        request_parameters = json.dumps({
-            "TableName": self._table_name,
-            "Key": {
-                "chat_id": {"S": str(key.chat_id)},
-                "user_id": {"S": str(key.user_id)},
-            },
-            "ProjectionExpression": "state_value",
-            "ConsistentRead": True,
-        })
+        request_parameters = json.dumps(
+            {
+                "TableName": self._table_name,
+                "Key": {
+                    "chat_id": {"S": str(key.chat_id)},
+                    "user_id": {"S": str(key.user_id)},
+                },
+                "ProjectionExpression": "state_value",
+                "ConsistentRead": True,
+            }
+        )
 
         response = await self._request_table(amz_target, request_parameters)
         response_body = json.loads(response)
@@ -189,17 +197,19 @@ class DynamoDBStorage(BaseStorage):
         )
 
         amz_target = "DynamoDB_20120810.UpdateItem"
-        request_parameters = json.dumps({
-            "TableName": self._table_name,
-            "Key": {
-                "chat_id": {"S": str(key.chat_id)},
-                "user_id": {"S": str(key.user_id)},
-            },
-            "UpdateExpression": "set data_value = :val1",
-            "ExpressionAttributeValues": {
-                ":val1": {"M": {k: {"S": json.dumps(v)} for k, v in data.items()}},
-            },
-        })
+        request_parameters = json.dumps(
+            {
+                "TableName": self._table_name,
+                "Key": {
+                    "chat_id": {"S": str(key.chat_id)},
+                    "user_id": {"S": str(key.user_id)},
+                },
+                "UpdateExpression": "set data_value = :val1",
+                "ExpressionAttributeValues": {
+                    ":val1": {"M": {k: {"S": json.dumps(v)} for k, v in data.items()}},
+                },
+            }
+        )
 
         await self._request_table(amz_target, request_parameters)
 
@@ -209,15 +219,17 @@ class DynamoDBStorage(BaseStorage):
         )
 
         amz_target = "DynamoDB_20120810.GetItem"
-        request_parameters = json.dumps({
-            "TableName": self._table_name,
-            "Key": {
-                "chat_id": {"S": str(key.chat_id)},
-                "user_id": {"S": str(key.user_id)},
-            },
-            "ProjectionExpression": "data_value",
-            "ConsistentRead": True,
-        })
+        request_parameters = json.dumps(
+            {
+                "TableName": self._table_name,
+                "Key": {
+                    "chat_id": {"S": str(key.chat_id)},
+                    "user_id": {"S": str(key.user_id)},
+                },
+                "ProjectionExpression": "data_value",
+                "ConsistentRead": True,
+            }
+        )
 
         response = await self._request_table(amz_target, request_parameters)
         response_body = json.loads(response)

@@ -43,10 +43,12 @@ async def start_handler(
     await message.answer(
         intro_replica,
         reply_markup=types.ReplyKeyboardMarkup(
-            keyboard=[[
-                types.KeyboardButton(text="🔍 Guess from Facts"),
-                types.KeyboardButton(text="🚩 Guess by Flag"),
-            ]],
+            keyboard=[
+                [
+                    types.KeyboardButton(text="🔍 Guess from Facts"),
+                    types.KeyboardButton(text="🚩 Guess by Flag"),
+                ]
+            ],
             resize_keyboard=True,
         ),
     )
@@ -176,10 +178,12 @@ async def restart_handler(message: types.Message, state: FSMContext) -> None:
         " victories. Hit the /start command to dive into a new game and set some"
         " impressive new records!",
         reply_markup=types.ReplyKeyboardMarkup(
-            keyboard=[[
-                types.KeyboardButton(text="🔍 Guess from Facts"),
-                types.KeyboardButton(text="🚩 Guess by Flag"),
-            ]],
+            keyboard=[
+                [
+                    types.KeyboardButton(text="🔍 Guess from Facts"),
+                    types.KeyboardButton(text="🚩 Guess by Flag"),
+                ]
+            ],
             resize_keyboard=True,
         ),
     )
@@ -211,10 +215,12 @@ async def score_handler(
         )
     else:
         show_scoreboard_replica = select_bot_replica(cursor, "SHOW_SCOREBOARD").replica
-        score_table = "\n".join([
-            f"{bold(timestamp.strftime('%m/%d/%Y, %H:%M:%S'))}: {score}"
-            for timestamp, score in scores.records.items()
-        ])
+        score_table = "\n".join(
+            [
+                f"{bold(timestamp.strftime('%m/%d/%Y, %H:%M:%S'))}: {score}"
+                for timestamp, score in scores.records.items()
+            ]
+        )
         await message.answer(
             show_scoreboard_replica.format(TOP_SCORES, score_table),
             reply_markup=types.ReplyKeyboardRemove(),
