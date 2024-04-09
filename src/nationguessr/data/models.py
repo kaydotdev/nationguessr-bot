@@ -4,12 +4,6 @@ from typing import Dict, List
 from pydantic import BaseModel, Field, NonNegativeInt, StrictStr
 
 
-class BotReplicaView(BaseModel):
-    id: str = Field(..., pattern=r"^[a-z0-9]{24}$")
-    key: StrictStr
-    replica: StrictStr
-
-
 class CountryFactView(BaseModel):
     id: str = Field(..., pattern=r"^[a-z0-9]{24}$")
     tags: List[StrictStr]

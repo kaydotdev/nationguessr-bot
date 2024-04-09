@@ -1,15 +1,3 @@
-CREATE TABLE bot_replicas
-(
-    id      TEXT NOT NULL
-        CONSTRAINT bot_replicas_pk
-            PRIMARY KEY,
-    key     TEXT NOT NULL,
-    replica TEXT NOT NULL
-);
-
-CREATE INDEX bot_replicas_key_index
-    ON bot_replicas (key);
-
 CREATE TABLE country_names
 (
     id      TEXT NOT NULL

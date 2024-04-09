@@ -12,7 +12,6 @@ from ..data.models import GameSession, ScoreBoard
 from ..service.fsm.state import BotState
 from ..service.utils import (
     batched,
-    select_bot_replica,
     select_random_country_facts,
     select_random_country_options,
 )
@@ -28,20 +27,21 @@ logger = logging.getLogger()
 
 
 @root_router.message(CommandStart())
-async def start_handler(
-    message: types.Message, state: FSMContext, db_connection: sqlite3.Connection
-) -> None:
+async def start_handler(message: types.Message, state: FSMContext) -> None:
     logger.info(
         f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /start"
         " command"
     )
 
-    cursor = db_connection.cursor()
-    intro_replica = select_bot_replica(cursor, "INTRO").replica
-
     await state.set_state(BotState.select_game)
     await message.answer(
-        intro_replica,
+        "🌍 Hey there, welcome to Nationguessr! I'm your friendly guide on this exciting journey around the globe,"
+        " where you'll uncover fascinating facts about different countries. Think you can guess which country we're "
+        "talking about from hints about its history, culture, geography, and loads more?\n\n🔄 Ready for a fresh start?"
+        " Just type /restart and we'll dive into a new quiz adventure.\n🏆 Curious about your best scores? Hit /score "
+        "to bask in your personal hall of fame.\n🧹 Want to start over and make new records? Use /clear to wipe the "
+        "slate clean.\n\nSo, what do you say - ready to embark on a guessing game that takes you around the world? "
+        "Let's get started!",
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [
@@ -113,24 +113,24 @@ async def play_guess_facts_game(
     cursor = db_connection.cursor()
 
     if message.text is None or message.text not in current_game_session.options:
-        unavailable_option_replica = select_bot_replica(
-            cursor, "GAME_ROUND_NOT_IN_OPTIONS"
-        ).replica
-        await message.answer(unavailable_option_replica)
+        await message.answer(
+            "🚀 Whoa there, trailblazer! You went for a choice that's outside our little box of "
+            "options. It's all good – think of it as taking the scenic route. Ready to jump back "
+            "on track? The next question is ready for your expert guessing!"
+        )
         current_game_session.lives_remained -= 1
     elif message.text != current_game_session.correct_option:
-        wrong_answer_replica = select_bot_replica(
-            cursor, "GAME_ROUND_WRONG_ANSWER"
-        ).replica
         await message.answer(
-            wrong_answer_replica.format(current_game_session.correct_option)
+            f"😅 Almost nailed it! The right answer was '{current_game_session.correct_option}'. "
+            "No worries, though! Let's shake that off and charge into the next question with full "
+            "steam. You're doing great - I believe in you!"
         )
         current_game_session.lives_remained -= 1
     else:
-        correct_answer_replica = select_bot_replica(
-            cursor, "GAME_ROUND_CORRECT_ANSWER"
-        ).replica
-        await message.answer(correct_answer_replica)
+        await message.answer(
+            "🎈 Phenomenal job! You've got it exactly right! Ready to dive into the next one? Let's "
+            "see if you can keep this amazing run going. Onward to the next question!"
+        )
         current_game_session.current_score += 1
 
     country_options = [
@@ -192,9 +192,7 @@ async def restart_handler(message: types.Message, state: FSMContext) -> None:
 @root_router.message(
     Command(BotCommand(command="score", description="View your top score in quiz"))
 )
-async def score_handler(
-    message: types.Message, state: FSMContext, db_connection: sqlite3.Connection
-) -> None:
+async def score_handler(message: types.Message, state: FSMContext) -> None:
     logger.info(
         f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /score"
         " command"
@@ -203,7 +201,6 @@ async def score_handler(
     state_data = await state.get_data()
     score_data = state_data.get("scores", {})
     scores = ScoreBoard(records=score_data)
-    cursor = db_connection.cursor()
 
     if len(scores.records) == 0:
         await message.answer(
@@ -214,7 +211,6 @@ async def score_handler(
             reply_markup=types.ReplyKeyboardRemove(),
         )
     else:
-        show_scoreboard_replica = select_bot_replica(cursor, "SHOW_SCOREBOARD").replica
         score_table = "\n".join(
             [
                 f"{bold(timestamp.strftime('%m/%d/%Y, %H:%M:%S'))}: {score}"
@@ -222,7 +218,9 @@ async def score_handler(
             ]
         )
         await message.answer(
-            show_scoreboard_replica.format(TOP_SCORES, score_table),
+            f"🌟 Look at that! Your top {TOP_SCORES} scores are sparkling at the top of the leaderboard like stars in "
+            "the night sky! Keep this incredible momentum going. Can you surpass your own achievements? It's time to "
+            f"break your own records!\n\n{score_table}",
             reply_markup=types.ReplyKeyboardRemove(),
         )
 
@@ -230,16 +228,15 @@ async def score_handler(
 @root_router.message(
     Command(BotCommand(command="clear", description="Clear your score table"))
 )
-async def clear_handler(
-    message: types.Message, state: FSMContext, db_connection: sqlite3.Connection
-) -> None:
+async def clear_handler(message: types.Message, state: FSMContext) -> None:
     logger.info(
         f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /clear"
         " command"
     )
 
-    cursor = db_connection.cursor()
-    clear_replica = select_bot_replica(cursor, "CLEAR_SCORES").replica
-
     await state.clear()
-    await message.answer(clear_replica, reply_markup=types.ReplyKeyboardRemove())
+    await message.answer(
+        "The leaderboard's been wiped clean, it's a fresh start! 🌈 Tap /start to jump into "
+        "your next adventure and carve out your spot at the top. Let's see those high scores soar! 🌟",
+        reply_markup=types.ReplyKeyboardRemove(),
+    )

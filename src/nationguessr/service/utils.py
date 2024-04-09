@@ -2,7 +2,7 @@ from itertools import islice
 from sqlite3 import Cursor
 from typing import Generator, Iterable, List, TypeVar
 
-from ..data.models import BotReplicaView, CountryFactView, CountryNameView
+from ..data.models import CountryFactView, CountryNameView
 
 T = TypeVar("T")
 
@@ -37,35 +37,6 @@ def batched(iterable: Iterable[T], n: int) -> Generator[tuple, None, None]:
     it = iter(iterable)
     while batch := tuple(islice(it, n)):
         yield batch
-
-
-def select_bot_replica(_cursor: Cursor, _key: str) -> BotReplicaView:
-    """
-
-    Args:
-        _cursor:
-        _key:
-
-    Returns:
-
-    """
-
-    _cursor.execute(
-        """
-        SELECT id, key, replica FROM bot_replicas
-        WHERE key = :key ORDER BY RANDOM() LIMIT 1;
-    """,
-        {"key": _key},
-    )
-
-    row = _cursor.fetchone()
-
-    if row is None:
-        err_msg = f"No replica found for key: {_key}"
-        raise ValueError(err_msg)
-
-    _id, _key, _replica = row
-    return BotReplicaView(id=_id, key=_key, replica=_replica)
 
 
 def select_random_country_options(_cursor: Cursor, _size: int) -> List[CountryNameView]:
