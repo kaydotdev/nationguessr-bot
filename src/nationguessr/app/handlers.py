@@ -1,6 +1,4 @@
 import logging
-import random
-import sqlite3
 
 from aiogram import F, Router, types
 from aiogram.filters import Command, CommandStart
@@ -8,19 +6,11 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types.bot_command import BotCommand
 from aiogram.utils.markdown import bold
 
-from ..data.models import GameSession, ScoreBoard
+from ..data.game import GameSession, ScoreBoard
 from ..service.fsm.state import BotState
-from ..service.utils import (
-    batched,
-    select_random_country_facts,
-    select_random_country_options,
-)
-from .settings import (
-    DEFAULT_FACTS_NUM,
-    DEFAULT_INIT_LIVES,
-    DEFAULT_OPTIONS_NUM,
-    TOP_SCORES,
-)
+from ..service.game import GuessingFactsGameService
+from ..service.utils import batched
+from ..settings import Settings
 
 root_router = Router(name=__name__)
 logger = logging.getLogger()
@@ -56,43 +46,36 @@ async def start_handler(message: types.Message, state: FSMContext) -> None:
 
 @root_router.message(BotState.select_game, F.text == "🔍 Guess from Facts")
 async def start_guess_facts_game(
-    message: types.Message, state: FSMContext, db_connection: sqlite3.Connection
+    message: types.Message,
+    state: FSMContext,
+    facts_game_service: GuessingFactsGameService,
+    app_settings: Settings,
 ) -> None:
-    cursor = db_connection.cursor()
-    country_options = [
-        country.name
-        for country in select_random_country_options(cursor, DEFAULT_OPTIONS_NUM)
-    ]
-    country_correct_option = random.choice(country_options)
-    selected_country_facts = select_random_country_facts(
-        cursor, country_correct_option, DEFAULT_FACTS_NUM
-    )
+    game_round = await facts_game_service.new_game_round()
 
     new_game_session = GameSession(
-        lives_remained=DEFAULT_INIT_LIVES,
+        lives_remained=app_settings.default_init_lives,
         current_score=0,
-        options=country_options,
-        correct_option=country_correct_option,
+        options=game_round.options,
+        correct_option=game_round.correct_option,
     )
 
     await state.set_state(BotState.playing_guess_facts)
     await state.update_data(**new_game_session.model_dump())
     await message.answer(
-        "🌟 Get ready for an exciting challenge! In this game, I'll share"
-        f" {DEFAULT_FACTS_NUM} intriguing and unique facts about a mystery"
-        " country. Your task? Guess the right country from"
-        f" {DEFAULT_OPTIONS_NUM} options - but there's only one correct"
-        f" answer!\n\nYou've got {DEFAULT_INIT_LIVES}❤️ attempts to prove your"
-        " skills. Aim high and see how high you can score! Are you up for the"
-        " challenge? Let's go! 🚀"
+        f"🌟 Get ready for an exciting challenge! In this game, I'll share {app_settings.default_facts_num} intriguing "
+        f"and unique facts about a mystery country. Your task? Guess the right country from "
+        f"{app_settings.default_options_num} options - but there's only one correct answer!\n\nYou've got "
+        f"{app_settings.default_init_lives}❤️ attempts to prove your skills. Aim high and see how high you can score! "
+        f"Are you up for the challenge? Let's go! 🚀"
     )
 
     await message.answer(
-        "\n".join([f"📍 {fact.content}" for fact in selected_country_facts]),
+        "\n".join([f"📍 {fact}" for fact in game_round.facts]),
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [types.KeyboardButton(text=option) for option in batch]
-                for batch in batched(country_options, n=2)
+                for batch in batched(game_round.options, n=2)
             ],
             resize_keyboard=True,
         ),
@@ -101,7 +84,9 @@ async def start_guess_facts_game(
 
 @root_router.message(BotState.playing_guess_facts, F.text.regexp(r"^[^/].*"))
 async def play_guess_facts_game(
-    message: types.Message, state: FSMContext, db_connection: sqlite3.Connection
+    message: types.Message,
+    state: FSMContext,
+    facts_game_service: GuessingFactsGameService,
 ) -> None:
     """The handler considers any user input as valid only if it is a bot command,
     i.e., it starts with a symbol '/', or an answer listed in the current game
@@ -110,7 +95,6 @@ async def play_guess_facts_game(
 
     state_data = await state.get_data()
     current_game_session = GameSession(**state_data)
-    cursor = db_connection.cursor()
 
     if message.text is None or message.text not in current_game_session.options:
         await message.answer(
@@ -133,25 +117,18 @@ async def play_guess_facts_game(
         )
         current_game_session.current_score += 1
 
-    country_options = [
-        country.name
-        for country in select_random_country_options(cursor, DEFAULT_OPTIONS_NUM)
-    ]
-    country_correct_option = random.choice(country_options)
-    selected_country_facts = select_random_country_facts(
-        cursor, country_correct_option, DEFAULT_FACTS_NUM
-    )
+    game_round = await facts_game_service.new_game_round()
 
-    current_game_session.options = country_options
-    current_game_session.correct_option = country_correct_option
+    current_game_session.options = game_round.options
+    current_game_session.correct_option = game_round.correct_option
 
     await state.update_data(**current_game_session.model_dump())
     await message.answer(
-        "\n".join([f"📍 {fact.content}" for fact in selected_country_facts]),
+        "\n".join([f"📍 {fact}" for fact in game_round.facts]),
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [types.KeyboardButton(text=option) for option in batch]
-                for batch in batched(country_options, n=2)
+                for batch in batched(game_round.options, n=2)
             ],
             resize_keyboard=True,
         ),
@@ -192,7 +169,9 @@ async def restart_handler(message: types.Message, state: FSMContext) -> None:
 @root_router.message(
     Command(BotCommand(command="score", description="View your top score in quiz"))
 )
-async def score_handler(message: types.Message, state: FSMContext) -> None:
+async def score_handler(
+    message: types.Message, state: FSMContext, app_settings: Settings
+) -> None:
     logger.info(
         f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /score"
         " command"
@@ -218,9 +197,9 @@ async def score_handler(message: types.Message, state: FSMContext) -> None:
             ]
         )
         await message.answer(
-            f"🌟 Look at that! Your top {TOP_SCORES} scores are sparkling at the top of the leaderboard like stars in "
-            "the night sky! Keep this incredible momentum going. Can you surpass your own achievements? It's time to "
-            f"break your own records!\n\n{score_table}",
+            f"🌟 Look at that! Your top {app_settings.default_top_scores} scores are sparkling at the top of the "
+            "leaderboard like stars in the night sky! Keep this incredible momentum going. Can you surpass your own "
+            f"achievements? It's time to break your own records!\n\n{score_table}",
             reply_markup=types.ReplyKeyboardRemove(),
         )
 

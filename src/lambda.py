@@ -1,44 +1,50 @@
 import asyncio
 import json
 import logging
-import sqlite3
 
-import nationguessr.app.settings as settings
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from nationguessr.app.handlers import root_router
 from nationguessr.service.fsm.storage import DynamoDBStorage
+from nationguessr.service.game import (
+    GenerationFromZipStrategy,
+    GuessingFactsGameService,
+)
+from nationguessr.settings import Settings
 
+settings = Settings()
+
+logging_level = settings.logging_level.value
 logger = logging.getLogger()
-logger.setLevel(settings.LOGGING_LEVEL)
+logger.setLevel(logging_level)
 
 # Instantiate Bot, Dispatcher, and Router in the global scope, not in the handler function.
 # This avoids duplicating the Router instance in the Dispatcher, which prevents a `RuntimeError`.
 # See `include_router` method for more details:
 #
 # https://docs.aiogram.dev/en/latest/_modules/aiogram/dispatcher/router.html#Router.include_router
-bot = Bot(settings.TOKEN, parse_mode=ParseMode.MARKDOWN)
+bot = Bot(settings.token, parse_mode=ParseMode.MARKDOWN)
 state_storage = DynamoDBStorage(
-    settings.AWS_ACCESS_KEY,
-    settings.AWS_SECRET_KEY,
-    settings.AWS_FSM_TABLE_NAME,
-    settings.AWS_REGION,
+    settings.aws_access_key,
+    settings.aws_secret_key,
+    settings.aws_fsm_table_name,
+    settings.aws_region,
 )
 dp = Dispatcher(storage=state_storage)
 dp.include_router(root_router)
 
 
 async def main(update_event) -> None:
-    with sqlite3.connect(settings.SQLITE_DB_PATH) as conn:
-        logger.debug(
-            "Successfully created DB connection instance from file:"
-            f" '{settings.SQLITE_DB_PATH}'"
-        )
+    facts_generation_strategy = GenerationFromZipStrategy(settings)
+    facts_game_service = GuessingFactsGameService(facts_generation_strategy, settings)
 
-        update_obj = types.Update(**update_event)
-        await dp.feed_update(bot=bot, update=update_obj, db_connection=conn)
-
-        logger.debug("Closing DB connection instance")
+    update_obj = types.Update(**update_event)
+    await dp.feed_update(
+        bot=bot,
+        update=update_obj,
+        facts_game_service=facts_game_service,
+        app_settings=settings,
+    )
 
 
 def handler(event, _):
@@ -47,9 +53,9 @@ def handler(event, _):
 
     logger.debug(f"Received an update event: {update_event}")
 
-    if not settings.TOKEN:
+    if not settings.token:
         logger.error(
-            "API Token is empty or invalid. Set it in `BOT_TOKEN` environment variable"
+            "API Token is empty or invalid. Set it in `VAR_TOKEN` environment variable"
         )
         return {"statusCode": 400}
 

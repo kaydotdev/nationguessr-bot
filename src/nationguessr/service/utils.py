@@ -1,8 +1,6 @@
 from itertools import islice
-from sqlite3 import Cursor
+from random import randint
 from typing import Generator, Iterable, List, TypeVar
-
-from ..data.models import CountryFactView, CountryNameView
 
 T = TypeVar("T")
 
@@ -39,45 +37,29 @@ def batched(iterable: Iterable[T], n: int) -> Generator[tuple, None, None]:
         yield batch
 
 
-def select_random_country_options(_cursor: Cursor, _size: int) -> List[CountryNameView]:
-    _cursor.execute(
-        """
-        SELECT id, code, name FROM country_names
-        ORDER BY RANDOM() LIMIT :size;
-    """,
-        {"size": _size},
-    )
-
-    return [
-        CountryNameView(id=_id, code=_code, name=_name)
-        for _id, _code, _name in _cursor.fetchall()
-    ]
-
-
-def select_random_country_facts(
-    _cursor: Cursor, _name: str, _size: int
-) -> List[CountryFactView]:
+def reservoir_sampling(iterable: Iterable[T], n: int) -> List[T]:
     """
 
     Args:
-        _cursor:
-        _name:
-        _size:
+        iterable (Iterable): The iterable to sample from.
+        n (int): The desired sample size. Must be at least 1.
 
     Returns:
 
     """
 
-    _cursor.execute(
-        """
-        SELECT cf.id, cf.tags, cf.content FROM country_facts cf
-        JOIN country_names cn on cf.country_id = cn.id
-        WHERE cn.name = :name ORDER BY RANDOM() LIMIT :size;
-    """,
-        {"name": _name, "size": _size},
-    )
+    if n < 1:
+        raise ValueError("Sample size must be at least 1")
 
-    return [
-        CountryFactView(id=_id, tags=_tags.split("|"), content=_content)
-        for _id, _tags, _content in _cursor.fetchall()
-    ]
+    reservoir = []
+
+    for index, item in enumerate(iterable):
+        if index < n:
+            reservoir.append(item)
+        else:
+            replace_index = randint(0, index)
+
+            if replace_index < n:
+                reservoir[replace_index] = item
+
+    return reservoir
