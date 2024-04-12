@@ -1,14 +1,10 @@
-from datetime import datetime
 from typing import Dict, List
 
 from pydantic import BaseModel, NonNegativeInt, StrictStr
 
 
-class ScoreBoard(BaseModel):
-    records: Dict[datetime, NonNegativeInt]
-
-
 class GameSession(BaseModel):
+    score_board: Dict[StrictStr, NonNegativeInt]
     lives_remained: NonNegativeInt
     current_score: NonNegativeInt
     options: List[StrictStr]

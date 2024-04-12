@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 from aiogram import F, Router, types
@@ -6,7 +7,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types.bot_command import BotCommand
 from aiogram.utils.markdown import bold
 
-from ..data.game import GameSession, ScoreBoard
+from ..data.game import GameSession
 from ..service.fsm.state import BotState
 from ..service.game import GuessingFactsGameService
 from ..service.utils import batched
@@ -51,9 +52,11 @@ async def start_guess_facts_game(
     facts_game_service: GuessingFactsGameService,
     app_settings: Settings,
 ) -> None:
+    state_data = await state.get_data()
     game_round = await facts_game_service.new_game_round()
 
     new_game_session = GameSession(
+        score_board=state_data.get("score_board", {}),
         lives_remained=app_settings.default_init_lives,
         current_score=0,
         options=game_round.options,
@@ -143,17 +146,30 @@ async def play_guess_facts_game(
         )
     )
 )
-async def restart_handler(message: types.Message, state: FSMContext) -> None:
+async def restart_handler(
+    message: types.Message, state: FSMContext, app_settings: Settings
+) -> None:
     logger.info(
         f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /restart"
         " command"
     )
 
+    state_data = await state.get_data()
+
+    score_timestamp = datetime.datetime.utcnow().isoformat()
+
+    current_game_session = GameSession(**state_data)
+    current_game_score = current_game_session.current_score
+    current_game_session.score_board[score_timestamp] = current_game_score
+
+    current_game_session.current_score = 0
+    current_game_session.lives_remained = app_settings.default_init_lives
+
+    await state.update_data(**current_game_session.model_dump())
     await state.set_state(BotState.select_game)
     await message.answer(
-        "🎉 All clear! Your high score board is now a clean slate, ready for new"
-        " victories. Hit the /start command to dive into a new game and set some"
-        " impressive new records!",
+        "🎉 All clear! Your high score board is now a clean slate, ready for new victories. Your score is now "
+        "available in a scoreboard.",
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [
@@ -178,29 +194,26 @@ async def score_handler(
     )
 
     state_data = await state.get_data()
-    score_data = state_data.get("scores", {})
-    scores = ScoreBoard(records=score_data)
+    scores = GameSession(**state_data).score_board
 
-    if len(scores.records) == 0:
+    if len(scores) == 0:
         await message.answer(
             "🌟 Your scoreboard is a blank canvas waiting to be filled with your"
             " achievements! Dive into some games and start racking up those scores."
             " Each game you play adds a new high score to your list. How high can"
             " you go? Let the games begin! 🚀",
-            reply_markup=types.ReplyKeyboardRemove(),
         )
     else:
         score_table = "\n".join(
             [
-                f"{bold(timestamp.strftime('%m/%d/%Y, %H:%M:%S'))}: {score}"
-                for timestamp, score in scores.records.items()
+                f"{bold(datetime.datetime.fromisoformat(timestamp).strftime('%d/%m/%Y, %H:%M:%S'))}: {score}"
+                for timestamp, score in scores.items()
             ]
         )
         await message.answer(
             f"🌟 Look at that! Your top {app_settings.default_top_scores} scores are sparkling at the top of the "
             "leaderboard like stars in the night sky! Keep this incredible momentum going. Can you surpass your own "
             f"achievements? It's time to break your own records!\n\n{score_table}",
-            reply_markup=types.ReplyKeyboardRemove(),
         )
 
 
