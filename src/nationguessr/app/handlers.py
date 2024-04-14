@@ -2,7 +2,7 @@ import datetime
 import logging
 
 from aiogram import F, Router, types
-from aiogram.filters import Command, CommandStart
+from aiogram.filters import Command, CommandStart, ExceptionTypeFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types.bot_command import BotCommand
 from aiogram.utils.markdown import bold
@@ -15,6 +15,17 @@ from ..settings import Settings
 
 root_router = Router(name=__name__)
 logger = logging.getLogger()
+
+
+@root_router.error(ExceptionTypeFilter(Exception), F.update.message.as_("message"))
+async def error_handler(event: types.ErrorEvent, message: types.Message):
+    logger.critical(
+        "Unhandled exception has occurred: %s", event.exception, exc_info=False
+    )
+
+    await message.answer(
+        "🛠 Oops, looks like we hit a snag! Please try again in a little bit."
+    )
 
 
 @root_router.message(CommandStart())
