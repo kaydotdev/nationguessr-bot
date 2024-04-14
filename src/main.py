@@ -3,6 +3,7 @@ import logging
 import sys
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from nationguessr.app.handlers import root_router
 from nationguessr.service.fsm.storage import DynamoDBStorage
@@ -35,7 +36,12 @@ async def main():
     facts_generation_strategy = GenerationFromZipStrategy(settings)
     facts_game_service = GuessingFactsGameService(facts_generation_strategy, settings)
 
-    bot = Bot(settings.token, parse_mode=ParseMode.MARKDOWN)
+    bot = Bot(
+        settings.token,
+        default=DefaultBotProperties(
+            parse_mode=ParseMode.MARKDOWN, protect_content=True
+        ),
+    )
     dp = Dispatcher(storage=state_storage)
     dp.include_router(root_router)
 

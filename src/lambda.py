@@ -3,6 +3,7 @@ import json
 import logging
 
 from aiogram import Bot, Dispatcher, types
+from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from nationguessr.app.handlers import root_router
 from nationguessr.service.fsm.storage import DynamoDBStorage
@@ -23,7 +24,10 @@ logger.setLevel(logging_level)
 # See `include_router` method for more details:
 #
 # https://docs.aiogram.dev/en/latest/_modules/aiogram/dispatcher/router.html#Router.include_router
-bot = Bot(settings.token, parse_mode=ParseMode.MARKDOWN)
+bot = Bot(
+    settings.token,
+    default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN, protect_content=True),
+)
 state_storage = DynamoDBStorage(
     settings.aws_access_key,
     settings.aws_secret_key,
@@ -39,6 +43,7 @@ async def main(update_event) -> None:
     facts_game_service = GuessingFactsGameService(facts_generation_strategy, settings)
 
     update_obj = types.Update(**update_event)
+
     await dp.feed_update(
         bot=bot,
         update=update_obj,
