@@ -14,11 +14,18 @@ from ..service.utils import reservoir_sampling
 from ..settings import Settings
 
 
-def record_new_score(session: GameSession) -> GameSession:
+def record_new_score(session: GameSession, settings: Settings) -> GameSession:
+    recorded_scores = session.score_board.keys()
+
+    if len(recorded_scores) >= settings.default_top_scores and all(
+        score > session.current_score for score in recorded_scores
+    ):
+        return session
+
     score_timestamp = datetime.utcnow().strftime("%d/%m/%Y")
     current_score = session.current_score
 
-    session.score_board.update({score_timestamp: current_score})
+    session.score_board.update({current_score: score_timestamp})
     session.current_score = 0
 
     return session

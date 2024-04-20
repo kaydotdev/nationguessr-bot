@@ -152,14 +152,16 @@ async def play_guess_facts_game(
         )
     )
 )
-async def restart_handler(message: types.Message, state: FSMContext) -> None:
+async def restart_handler(
+    message: types.Message, state: FSMContext, app_settings: Settings
+) -> None:
     logger.info(
         f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /restart"
         " command"
     )
 
     state_data = await state.get_data()
-    current_game_session = record_new_score(GameSession(**state_data))
+    current_game_session = record_new_score(GameSession(**state_data), app_settings)
 
     await state.update_data(**current_game_session.model_dump())
     await state.set_state(BotState.select_game)
@@ -197,8 +199,8 @@ async def score_handler(message: types.Message, state: FSMContext) -> None:
             score_table = "\n".join(
                 [
                     f"{i + 1}. {timestamp} - {score} point(s)"
-                    for i, (timestamp, score) in enumerate(
-                        sorted(scores.items(), key=lambda x: x[1], reverse=True)
+                    for i, (score, timestamp) in enumerate(
+                        sorted(scores.items(), key=lambda x: x[0], reverse=True)
                     )
                 ]
             )

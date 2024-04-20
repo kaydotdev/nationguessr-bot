@@ -4,7 +4,7 @@ from pydantic import BaseModel, NonNegativeInt, StrictStr
 
 
 class GameSession(BaseModel):
-    score_board: Dict[StrictStr, NonNegativeInt]
+    score_board: Dict[NonNegativeInt, StrictStr]
     lives_remained: NonNegativeInt
     current_score: NonNegativeInt
     options: List[StrictStr]
