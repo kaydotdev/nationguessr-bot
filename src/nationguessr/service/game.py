@@ -3,14 +3,25 @@ import os
 import random
 import zipfile
 from abc import ABC, abstractmethod
+from datetime import datetime
 from io import BytesIO, StringIO
 from typing import List, Tuple
 
 import aiofiles
 
-from ..data.game import FactsGuessingGameRound
+from ..data.game import FactsGuessingGameRound, GameSession
 from ..service.utils import reservoir_sampling
 from ..settings import Settings
+
+
+def record_new_score(session: GameSession) -> GameSession:
+    score_timestamp = datetime.utcnow().strftime("%d/%m/%Y")
+    current_score = session.current_score
+
+    session.score_board.update({score_timestamp: current_score})
+    session.current_score = 0
+
+    return session
 
 
 class FactGenerationStrategy(ABC):

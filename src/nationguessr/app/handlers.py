@@ -1,15 +1,13 @@
-import datetime
 import logging
 
 from aiogram import F, Router, types
 from aiogram.filters import Command, CommandStart, ExceptionTypeFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types.bot_command import BotCommand
-from aiogram.utils.markdown import bold
 
 from ..data.game import GameSession
 from ..service.fsm.state import BotState
-from ..service.game import GuessingFactsGameService
+from ..service.game import GuessingFactsGameService, record_new_score
 from ..service.utils import batched
 from ..settings import Settings
 
@@ -24,7 +22,7 @@ async def error_handler(event: types.ErrorEvent, message: types.Message):
     )
 
     await message.answer(
-        "🛠 Oops, looks like we hit a snag! Please try again in a little bit."
+        "⚠️ Oops, looks like we hit a snag! Please try again in a little bit."
     )
 
 
@@ -157,24 +155,14 @@ async def play_guess_facts_game(
         )
     )
 )
-async def restart_handler(
-    message: types.Message, state: FSMContext, app_settings: Settings
-) -> None:
+async def restart_handler(message: types.Message, state: FSMContext) -> None:
     logger.info(
         f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /restart"
         " command"
     )
 
     state_data = await state.get_data()
-
-    score_timestamp = datetime.datetime.utcnow().isoformat()
-
-    current_game_session = GameSession(**state_data)
-    current_game_score = current_game_session.current_score
-    current_game_session.score_board[score_timestamp] = current_game_score
-
-    current_game_session.current_score = 0
-    current_game_session.lives_remained = app_settings.default_init_lives
+    current_game_session = record_new_score(GameSession(**state_data))
 
     await state.update_data(**current_game_session.model_dump())
     await state.set_state(BotState.select_game)
@@ -196,36 +184,34 @@ async def restart_handler(
 @root_router.message(
     Command(BotCommand(command="score", description="View your top score in quiz"))
 )
-async def score_handler(
-    message: types.Message, state: FSMContext, app_settings: Settings
-) -> None:
+async def score_handler(message: types.Message, state: FSMContext) -> None:
     logger.info(
         f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /score"
         " command"
     )
 
     state_data = await state.get_data()
-    scores = GameSession(**state_data).score_board
 
-    if len(scores) == 0:
-        await message.answer(
-            "🌟 Your scoreboard is a blank canvas waiting to be filled with your"
-            " achievements! Dive into some games and start racking up those scores."
-            " Each game you play adds a new high score to your list. How high can"
-            " you go? Let the games begin! 🚀",
-        )
+    if state_data.get("score_board"):
+        scores = GameSession(**state_data).score_board
+
+        if len(scores) == 0:
+            await message.answer("🌟 Your scoreboard is a blank canvas!")
+        else:
+            score_table = "\n".join(
+                [
+                    f"{i + 1}. {timestamp} - {score} point(s)"
+                    for i, (timestamp, score) in enumerate(
+                        sorted(scores.items(), key=lambda x: x[1], reverse=True)
+                    )
+                ]
+            )
+
+            await message.answer(
+                f"*🏆 Top Scores 🏆*\n---\n{score_table}",
+            )
     else:
-        score_table = "\n".join(
-            [
-                f"{bold(datetime.datetime.fromisoformat(timestamp).strftime('%d/%m/%Y, %H:%M:%S'))}: {score}"
-                for timestamp, score in scores.items()
-            ]
-        )
-        await message.answer(
-            f"🌟 Look at that! Your top {app_settings.default_top_scores} scores are sparkling at the top of the "
-            "leaderboard like stars in the night sky! Keep this incredible momentum going. Can you surpass your own "
-            f"achievements? It's time to break your own records!\n\n{score_table}",
-        )
+        await message.answer("🌟 Your scoreboard is a blank canvas!")
 
 
 @root_router.message(
