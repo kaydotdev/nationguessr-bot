@@ -30,8 +30,8 @@ class Settings(BaseSettings):
     default_countries_num: int = Field(default=194)
 
     token: str = Field(...)
+    secret_token: str | None = Field(default=None)
     assets_folder: str | os.PathLike = Field(default="./assets")
-    archive_secret_key: str = Field(...)
 
     fact_generation_strategy: FactsGenerationStrategy = Field(
         FactsGenerationStrategy.LOCAL_ZIPFILE

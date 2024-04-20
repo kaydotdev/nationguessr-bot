@@ -53,6 +53,17 @@ async def main(update_event) -> None:
 
 
 def handler(event, _):
+    if settings.secret_token is not None:
+        update_headers = event.get("headers", {})
+        update_secret_token = update_headers.get("x-telegram-bot-api-secret-token")
+
+        if update_secret_token is None or update_secret_token != settings.secret_token:
+            origin_address = update_headers.get("x-forwarded-for", "0.0.0.0")
+            logger.warning(
+                f"Received an unauthorized external request from '{origin_address}' with missing secret token"
+            )
+            return {"statusCode": 403}
+
     update_event = json.loads(event.get("body", "{}"))
     loop = asyncio.get_event_loop()
 
