@@ -4,6 +4,7 @@ from aiogram import F, Router, types
 from aiogram.filters import Command, CommandStart, ExceptionTypeFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types.bot_command import BotCommand
+from aiogram.utils.markdown import bold
 
 from ..data.game import GameSession
 from ..service.fsm.state import BotState
@@ -110,22 +111,18 @@ async def play_guess_facts_game(
 
     if message.text is None or message.text not in current_game_session.options:
         await message.answer(
-            "🚀 Whoa there, trailblazer! You went for a choice that's outside our little box of "
-            "options. It's all good – think of it as taking the scenic route. Ready to jump back "
-            "on track? The next question is ready for your expert guessing!"
+            "🚀 Whoa there, trailblazer! Your answer was not on the list. Let's try again, shall we?"
         )
         current_game_session.lives_remained -= 1
     elif message.text != current_game_session.correct_option:
         await message.answer(
-            f"😅 Almost nailed it! The right answer was '{current_game_session.correct_option}'. "
-            "No worries, though! Let's shake that off and charge into the next question with full "
-            "steam. You're doing great - I believe in you!"
+            f"😅 Almost nailed it! The right answer was '{current_game_session.correct_option}'. Ready to dive into "
+            f"the next one?"
         )
         current_game_session.lives_remained -= 1
     else:
         await message.answer(
-            "🎈 Phenomenal job! You've got it exactly right! Ready to dive into the next one? Let's "
-            "see if you can keep this amazing run going. Onward to the next question!"
+            "🎈 Phenomenal job! You've got it exactly right! Ready to dive into the next one?"
         )
         current_game_session.current_score += 1
 
@@ -167,8 +164,7 @@ async def restart_handler(message: types.Message, state: FSMContext) -> None:
     await state.update_data(**current_game_session.model_dump())
     await state.set_state(BotState.select_game)
     await message.answer(
-        "🎉 All clear! Your high score board is now a clean slate, ready for new victories. Your score is now "
-        "available in a scoreboard.",
+        f"👾 {bold('GAME OVER')} 👾",
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [
@@ -225,7 +221,6 @@ async def clear_handler(message: types.Message, state: FSMContext) -> None:
 
     await state.clear()
     await message.answer(
-        "The leaderboard's been wiped clean, it's a fresh start! 🌈 Tap /start to jump into "
-        "your next adventure and carve out your spot at the top. Let's see those high scores soar! 🌟",
+        "🌟 The leaderboard's been wiped clean! Tap /start to jump into your next adventure! 🌟",
         reply_markup=types.ReplyKeyboardRemove(),
     )
