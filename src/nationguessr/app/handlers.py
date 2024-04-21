@@ -75,13 +75,6 @@ async def start_guess_facts_game(
 
     await state.set_state(BotState.playing_guess_facts)
     await state.update_data(**new_game_session.model_dump())
-    await message.answer(
-        f"🌟 Get ready for an exciting challenge! In this game, I'll share {app_settings.default_facts_num} intriguing "
-        f"and unique facts about a mystery country. Your task? Guess the right country from "
-        f"{app_settings.default_options_num} options - but there's only one correct answer!\n\nYou've got "
-        f"{app_settings.default_init_lives}❤️ attempts to prove your skills. Aim high and see how high you can score! "
-        f"Are you up for the challenge? Let's go! 🚀"
-    )
 
     await message.answer(
         "\n".join([f"📍 {fact}" for fact in game_round.facts]),
@@ -176,6 +169,29 @@ async def restart_handler(
             ],
             resize_keyboard=True,
         ),
+    )
+
+
+@root_router.message(
+    Command(
+        BotCommand(
+            command="tutorial", description="A brief description about quiz games"
+        )
+    )
+)
+async def tutorial_handler(message: types.Message, app_settings: Settings) -> None:
+    logger.info(
+        f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /tutorial command"
+    )
+
+    await message.answer(
+        "🌍 Get ready to embark on an exhilarating journey with our 'Guess from Facts' and 'Guess by Flag' games!\n\n"
+        f"🔍 In 'Guess from Facts', I'll select a random country and reveal {app_settings.default_facts_num} intriguing"
+        f" facts about it. You'll see {app_settings.default_options_num} options, but only one is correct. Can you "
+        f"pinpoint the right country on each turn? Be cautious — you're only allowed {app_settings.default_init_lives}"
+        " mistakes per game, after which it's game over!\n\n🚩 In 'Guess by Flag', I'll show you the flag of a mystery "
+        "country alongside 4 possible choices. Your challenge is to correctly identify the country's flag with each "
+        "attempt.\n\nAre you thrilled to dive in and start playing? Let’s see how much you know about the world! 🌐"
     )
 
 
