@@ -8,7 +8,7 @@ from aiogram.utils.markdown import bold
 
 from ..data.game import GameSession
 from ..service.fsm.state import BotState
-from ..service.game import GuessingFactsGameService, record_new_score
+from ..service.game import GuessingFactsGameService, draw_game_bar, record_new_score
 from ..service.utils import batched
 from ..settings import Settings
 
@@ -77,8 +77,9 @@ async def start_guess_facts_game(
     await state.set_state(BotState.playing_guess_facts)
     await state.update_data(**new_game_session.model_dump())
 
+    await message.answer("\n".join([f"📍 {fact}" for fact in game_round.facts]))
     await message.answer(
-        "\n".join([f"📍 {fact}" for fact in game_round.facts]),
+        draw_game_bar(new_game_session, app_settings),
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [types.KeyboardButton(text=option) for option in batch]
@@ -94,6 +95,7 @@ async def play_guess_facts_game(
     message: types.Message,
     state: FSMContext,
     facts_game_service: GuessingFactsGameService,
+    app_settings: Settings,
 ) -> None:
     """The handler considers any user input as valid only if it is a bot command,
     i.e., it starts with a symbol '/', or an answer listed in the current game
@@ -126,8 +128,10 @@ async def play_guess_facts_game(
     current_game_session.correct_option = game_round.correct_option
 
     await state.update_data(**current_game_session.model_dump())
+
+    await message.answer("\n".join([f"📍 {fact}" for fact in game_round.facts]))
     await message.answer(
-        "\n".join([f"📍 {fact}" for fact in game_round.facts]),
+        draw_game_bar(current_game_session, app_settings),
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [types.KeyboardButton(text=option) for option in batch]
