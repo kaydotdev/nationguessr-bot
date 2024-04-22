@@ -36,13 +36,14 @@ async def start_handler(message: types.Message, state: FSMContext) -> None:
 
     await state.set_state(BotState.select_game)
     await message.answer(
-        "🌍 Hey there, welcome to Nationguessr! I'm your friendly guide on this exciting journey around the globe,"
-        " where you'll uncover fascinating facts about different countries. Think you can guess which country we're "
-        "talking about from hints about its history, culture, geography, and loads more?\n\n🔄 Ready for a fresh start?"
-        " Just type /restart and we'll dive into a new quiz adventure.\n🏆 Curious about your best scores? Hit /score "
-        "to bask in your personal hall of fame.\n🧹 Want to start over and make new records? Use /clear to wipe the "
-        "slate clean.\n\nSo, what do you say - ready to embark on a guessing game that takes you around the world? "
-        "Let's get started!",
+        "🌍 Hello and welcome to Nationguessr! I'm here to guide you through an enthralling journey across "
+        "continents as we explore incredible facts about different countries. Ready to test your knowledge and "
+        "guess which nation we’re hinting at from snippets about its history, culture, and geography?\n\n🔄 Feel "
+        "like starting fresh? Just type /restart and we’ll kick off another exciting quiz adventure.\n🏆 Want to "
+        "relive your victories? Hit /score to revel in your personal hall of fame.\n🧹 Ready to reset and break "
+        "new records? Use /clear to wipe the slate clean.\n📚 Need a quick guide on how to play? Tap /tutorial "
+        "for a brief overview of our quiz games.\n\nSo, what do you think—eager to start a guessing game that "
+        "transports you around the world? Let’s jump right in!",
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [
