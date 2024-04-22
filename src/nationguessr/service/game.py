@@ -1,6 +1,6 @@
 import csv
-import os
 import math
+import os
 import random
 import zipfile
 from abc import ABC, abstractmethod
@@ -57,18 +57,26 @@ def number_as_emoji(num: int, slots: int = 5) -> str:
     emoji_map = ["0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"]
 
     if num == 0:
-        return emoji_map[0] * max(1, slots)  # Ensure that even '0' has the minimum number of characters
+        return emoji_map[0] * max(
+            1, slots
+        )  # Ensure that even '0' has the minimum number of characters
 
     emoji_number = ""
-    num_base = math.floor(math.log10(num)) + 1  # Calculate the number of digits in the input integer
+    num_base = (
+        math.floor(math.log10(num)) + 1
+    )  # Calculate the number of digits in the input integer
 
     while num > 0:
         last_digit = num % 10
-        num //= 10  # Remove last digit from remaining digits sequence of the input integer
+        num //= (
+            10  # Remove last digit from remaining digits sequence of the input integer
+        )
 
         emoji_number = emoji_map[last_digit] + emoji_number
 
-    if num_base < slots:  # Left pad result with extra zeros if its length is less than slots number
+    if (
+        num_base < slots
+    ):  # Left pad result with extra zeros if its length is less than slots number
         emoji_number = emoji_map[0] * (slots - num_base) + emoji_number
 
     return emoji_number
@@ -112,7 +120,8 @@ class GenerationFromZipStrategy(FactGenerationStrategy):
 
     async def generate_facts(self, country_code: str) -> List[str]:
         async with aiofiles.open(
-            os.path.join(self._settings.assets_folder, "country_facts.zip"), mode="rb"
+            os.path.join(self._settings.assets_folder, "data", "country_facts.zip"),
+            mode="rb",
         ) as file:
             with zipfile.ZipFile(BytesIO(await file.read())) as facts_zip:
                 with facts_zip.open(f"{country_code}.csv") as facts_file:
@@ -142,7 +151,8 @@ class GuessingFactsGameService:
         )
 
         async with aiofiles.open(
-            os.path.join(self._settings.assets_folder, "countries.csv"), mode="r"
+            os.path.join(self._settings.assets_folder, "data", "countries.csv"),
+            mode="r",
         ) as file:
             reader = csv.reader(
                 StringIO(await file.read()), delimiter=",", quotechar='"'
