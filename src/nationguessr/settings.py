@@ -1,7 +1,7 @@
 import os
 from enum import Enum
 
-from pydantic import Field
+from pydantic import Field, NonNegativeInt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,11 +23,11 @@ class Settings(BaseSettings):
 
     logging_level: LoggingLevel = Field(default=LoggingLevel.INFO)
 
-    default_top_scores: int = Field(default=10)
-    default_init_lives: int = Field(default=5)
-    default_facts_num: int = Field(default=5)
-    default_options_num: int = Field(default=4)
-    default_countries_num: int = Field(default=194)
+    default_top_scores: NonNegativeInt = Field(default=10)
+    default_init_lives: NonNegativeInt = Field(default=5)
+    default_facts_num: NonNegativeInt = Field(default=5)
+    default_options_num: NonNegativeInt = Field(default=4)
+    default_countries_num: NonNegativeInt = Field(default=194)
 
     token: str = Field(...)
     secret_token: str | None = Field(default=None)
