@@ -1,14 +1,18 @@
+import io
 import logging
+import os
 
 from aiogram import F, Router, types
 from aiogram.filters import Command, CommandStart, ExceptionTypeFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types.bot_command import BotCommand
 from aiogram.utils.markdown import bold
+from PIL import Image
 
 from ..data.game import GameSession
 from ..service.fsm.state import BotState
 from ..service.game import GuessingFactsGameService, draw_game_bar, record_new_score
+from ..service.image import ImageEditService
 from ..service.utils import batched
 from ..settings import Settings
 
@@ -61,6 +65,7 @@ async def start_guess_facts_game(
     message: types.Message,
     state: FSMContext,
     facts_game_service: GuessingFactsGameService,
+    text_on_image_service: ImageEditService,
     app_settings: Settings,
 ) -> None:
     state_data = await state.get_data()
@@ -77,17 +82,37 @@ async def start_guess_facts_game(
     await state.set_state(BotState.playing_guess_facts)
     await state.update_data(**new_game_session.model_dump())
 
-    await message.answer("\n".join([f"📍 {fact}" for fact in game_round.facts]))
-    await message.answer(
-        draw_game_bar(new_game_session, app_settings),
-        reply_markup=types.ReplyKeyboardMarkup(
-            keyboard=[
-                [types.KeyboardButton(text=option) for option in batch]
-                for batch in batched(game_round.options, n=2)
-            ],
-            resize_keyboard=True,
-        ),
+    quiz_card_template_path = os.path.join(
+        app_settings.assets_folder, "cards", "game_guessing.png"
     )
+
+    with (
+        Image.open(quiz_card_template_path) as quiz_card_template,
+        io.BytesIO() as img_buffer,
+    ):
+        numerated_text = [
+            f"{i + 1}. {chunk}" for i, chunk in enumerate(game_round.facts)
+        ]
+        quiz_card_image = text_on_image_service.add_multiline_text(
+            quiz_card_template, numerated_text, position=(0, -100), center=True
+        )
+        quiz_card_image.save(img_buffer, format="PNG")
+
+        img_buffer.seek(0)
+
+        await message.answer_photo(
+            types.BufferedInputFile(img_buffer.read(), filename="quiz_card.png"),
+            caption=draw_game_bar(new_game_session, app_settings) + "\n\nGet ready for an exciting challenge! Here are "
+                                                                    "5 intriguing facts about the country. Do you know "
+                                                                    "the right answer?",
+            reply_markup=types.ReplyKeyboardMarkup(
+                keyboard=[
+                    [types.KeyboardButton(text=option) for option in batch]
+                    for batch in batched(game_round.options, n=2)
+                ],
+                resize_keyboard=True,
+            ),
+        )
 
 
 @root_router.message(BotState.playing_guess_facts, F.text.regexp(r"^[^/].*"))
@@ -95,6 +120,8 @@ async def play_guess_facts_game(
     message: types.Message,
     state: FSMContext,
     facts_game_service: GuessingFactsGameService,
+    text_on_image_service: ImageEditService,
+    score_edit_service: ImageEditService,
     app_settings: Settings,
 ) -> None:
     """The handler considers any user input as valid only if it is a bot command,
@@ -106,20 +133,14 @@ async def play_guess_facts_game(
     current_game_session = GameSession(**state_data)
 
     if message.text is None or message.text not in current_game_session.options:
-        await message.answer(
-            "🚀 Whoa there, trailblazer! Your answer was not on the list. Let's try again, shall we?"
-        )
+        response_message = "🚀 Whoa there, trailblazer! Your answer was not on the list. Let's try again, shall we?"
         current_game_session.lives_remained -= 1
     elif message.text != current_game_session.correct_option:
-        await message.answer(
-            f"😅 Almost nailed it! The right answer was '{current_game_session.correct_option}'. Ready to dive into "
-            f"the next one?"
-        )
+        response_message = (f"😅 Almost nailed it! The right answer was '{current_game_session.correct_option}'. Ready "
+                            f"to dive into the next one?")
         current_game_session.lives_remained -= 1
     else:
-        await message.answer(
-            "🎈 Phenomenal job! You've got it exactly right! Ready to dive into the next one?"
-        )
+        response_message = "🌟 Phenomenal job! You've got it exactly right! Ready to dive into the next one?"
         current_game_session.current_score += 1
 
     game_round = await facts_game_service.new_game_round()
@@ -129,17 +150,35 @@ async def play_guess_facts_game(
 
     await state.update_data(**current_game_session.model_dump())
 
-    await message.answer("\n".join([f"📍 {fact}" for fact in game_round.facts]))
-    await message.answer(
-        draw_game_bar(current_game_session, app_settings),
-        reply_markup=types.ReplyKeyboardMarkup(
-            keyboard=[
-                [types.KeyboardButton(text=option) for option in batch]
-                for batch in batched(game_round.options, n=2)
-            ],
-            resize_keyboard=True,
-        ),
+    quiz_card_template_path = os.path.join(
+        app_settings.assets_folder, "cards", "game_guessing.png"
     )
+
+    with (
+        Image.open(quiz_card_template_path) as quiz_card_template,
+        io.BytesIO() as img_buffer,
+    ):
+        numerated_text = [
+            f"{i + 1}. {chunk}" for i, chunk in enumerate(game_round.facts)
+        ]
+        quiz_card_image = text_on_image_service.add_multiline_text(
+            quiz_card_template, numerated_text, position=(0, -100), center=True
+        )
+        quiz_card_image.save(img_buffer, format="PNG")
+
+        img_buffer.seek(0)
+
+        await message.answer_photo(
+            types.BufferedInputFile(img_buffer.read(), filename="quiz_card.png"),
+            caption=draw_game_bar(current_game_session, app_settings) + "\n\n" + response_message,
+            reply_markup=types.ReplyKeyboardMarkup(
+                keyboard=[
+                    [types.KeyboardButton(text=option) for option in batch]
+                    for batch in batched(game_round.options, n=2)
+                ],
+                resize_keyboard=True,
+            ),
+        )
 
 
 @root_router.message(

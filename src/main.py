@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 import sys
 
 from aiogram import Bot, Dispatcher
@@ -11,7 +12,9 @@ from nationguessr.service.game import (
     GenerationFromZipStrategy,
     GuessingFactsGameService,
 )
+from nationguessr.service.image import ImageEditService
 from nationguessr.settings import Settings
+from PIL import ImageFont
 
 settings = Settings()
 
@@ -36,6 +39,17 @@ async def main():
     facts_generation_strategy = GenerationFromZipStrategy(settings)
     facts_game_service = GuessingFactsGameService(facts_generation_strategy, settings)
 
+    text_font_path = os.path.join(
+        settings.assets_folder, "fonts", "Poppins-ExtraBold.ttf"
+    )
+
+    text_on_image_service = ImageEditService(
+        ImageFont.truetype(text_font_path, 28), settings.default_text_color
+    )
+    score_edit_service = ImageEditService(
+        ImageFont.truetype(text_font_path, 128), settings.default_text_color
+    )
+
     bot = Bot(
         settings.token,
         default=DefaultBotProperties(
@@ -49,6 +63,8 @@ async def main():
         bot,
         skip_updates=True,
         facts_game_service=facts_game_service,
+        text_on_image_service=text_on_image_service,
+        score_edit_service=score_edit_service,
         app_settings=settings,
     )
 
