@@ -6,7 +6,6 @@ from aiogram import F, Router, types
 from aiogram.filters import Command, CommandStart, ExceptionTypeFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types.bot_command import BotCommand
-from aiogram.utils.markdown import bold
 from PIL import Image
 
 from ..data.game import GameSession
@@ -102,9 +101,10 @@ async def start_guess_facts_game(
 
         await message.answer_photo(
             types.BufferedInputFile(img_buffer.read(), filename="quiz_card.png"),
-            caption=draw_game_bar(new_game_session, app_settings) + "\n\nGet ready for an exciting challenge! Here are "
-                                                                    "5 intriguing facts about the country. Do you know "
-                                                                    "the right answer?",
+            caption=draw_game_bar(new_game_session, app_settings)
+            + "\n\nGet ready for an exciting challenge! Here are "
+            "5 intriguing facts about the country. Do you know "
+            "the right answer?",
             reply_markup=types.ReplyKeyboardMarkup(
                 keyboard=[
                     [types.KeyboardButton(text=option) for option in batch]
@@ -136,12 +136,21 @@ async def play_guess_facts_game(
         response_message = "🚀 Whoa there, trailblazer! Your answer was not on the list. Let's try again, shall we?"
         current_game_session.lives_remained -= 1
     elif message.text != current_game_session.correct_option:
-        response_message = (f"😅 Almost nailed it! The right answer was '{current_game_session.correct_option}'. Ready "
-                            f"to dive into the next one?")
+        response_message = (
+            f"😅 Almost nailed it! The right answer was '{current_game_session.correct_option}'. Ready "
+            f"to dive into the next one?"
+        )
         current_game_session.lives_remained -= 1
     else:
         response_message = "🌟 Phenomenal job! You've got it exactly right! Ready to dive into the next one?"
         current_game_session.current_score += 1
+
+    if current_game_session.lives_remained == 0:
+        await end_game_and_display_score(
+            message, state, current_game_session, score_edit_service, app_settings
+        )
+
+        return
 
     game_round = await facts_game_service.new_game_round()
 
@@ -170,7 +179,9 @@ async def play_guess_facts_game(
 
         await message.answer_photo(
             types.BufferedInputFile(img_buffer.read(), filename="quiz_card.png"),
-            caption=draw_game_bar(current_game_session, app_settings) + "\n\n" + response_message,
+            caption=draw_game_bar(current_game_session, app_settings)
+            + "\n\n"
+            + response_message,
             reply_markup=types.ReplyKeyboardMarkup(
                 keyboard=[
                     [types.KeyboardButton(text=option) for option in batch]
@@ -190,7 +201,10 @@ async def play_guess_facts_game(
     )
 )
 async def restart_handler(
-    message: types.Message, state: FSMContext, app_settings: Settings
+    message: types.Message,
+    state: FSMContext,
+    score_edit_service: ImageEditService,
+    app_settings: Settings,
 ) -> None:
     logger.info(
         f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /restart"
@@ -198,21 +212,9 @@ async def restart_handler(
     )
 
     state_data = await state.get_data()
-    current_game_session = record_new_score(GameSession(**state_data), app_settings)
-
-    await state.update_data(**current_game_session.model_dump())
-    await state.set_state(BotState.select_game)
-    await message.answer(
-        f"👾 {bold('GAME OVER')} 👾",
-        reply_markup=types.ReplyKeyboardMarkup(
-            keyboard=[
-                [
-                    types.KeyboardButton(text="🔍 Guess from Facts"),
-                    types.KeyboardButton(text="🚩 Guess by Flag"),
-                ]
-            ],
-            resize_keyboard=True,
-        ),
+    current_game_session = GameSession(**state_data)
+    await end_game_and_display_score(
+        message, state, current_game_session, score_edit_service, app_settings
     )
 
 
@@ -286,3 +288,49 @@ async def clear_handler(message: types.Message, state: FSMContext) -> None:
         "🌟 The leaderboard's been wiped clean! Tap /start to jump into your next adventure! 🌟",
         reply_markup=types.ReplyKeyboardRemove(),
     )
+
+
+async def end_game_and_display_score(
+    message: types.Message,
+    state: FSMContext,
+    game_session: GameSession,
+    score_edit_service: ImageEditService,
+    app_settings: Settings,
+) -> None:
+    current_score = game_session.current_score
+    current_game_session = record_new_score(game_session, app_settings)
+
+    game_over_card_template_path = os.path.join(
+        app_settings.assets_folder, "cards", "game_over.png"
+    )
+
+    with (
+        Image.open(game_over_card_template_path) as game_over_card_template,
+        io.BytesIO() as img_buffer,
+    ):
+        game_over_card_image = score_edit_service.add_text(
+            game_over_card_template,
+            str(current_score),
+            position=(0, 10),
+            center=True,
+        )
+        game_over_card_image.save(img_buffer, format="PNG")
+
+        img_buffer.seek(0)
+
+        await state.set_state(BotState.select_game)
+        await state.update_data(**current_game_session.model_dump())
+        await message.answer_photo(
+            types.BufferedInputFile(img_buffer.read(), filename="game_over_card.png"),
+            caption="👾 The game is over! Want to give it another go? Just select new game from the options below to "
+                    "start fresh!",
+            reply_markup=types.ReplyKeyboardMarkup(
+                keyboard=[
+                    [
+                        types.KeyboardButton(text="🔍 Guess from Facts"),
+                        types.KeyboardButton(text="🚩 Guess by Flag"),
+                    ]
+                ],
+                resize_keyboard=True,
+            ),
+        )
