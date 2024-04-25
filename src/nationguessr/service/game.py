@@ -53,6 +53,9 @@ def number_as_character(
         ... except ValueError as e:
         ...     print(e)
         The input integer value must be positive
+        >>> emoji_map = ["0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"]
+        >>> number_as_character(123, char_map=emoji_map)
+        '1️⃣2️⃣3️⃣'
     """
 
     if num < 0:
