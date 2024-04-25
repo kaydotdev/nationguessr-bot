@@ -96,6 +96,14 @@ async def start_guess_facts_game(
     )
 
 
+@root_router.message(BotState.select_game, F.text == "🚩 Guess by Flag")
+async def start_guess_flag_game(message: types.Message) -> None:
+    await message.answer(
+        "🚧 Hang tight! This game mode is still under construction but will be ready to rock in our next update! "
+        "Why not try out some of our other exciting modes in the meantime?"
+    )
+
+
 @root_router.message(BotState.playing_guess_facts, F.text.regexp(r"^[^/].*"))
 async def play_guess_facts_game(
     message: types.Message,
