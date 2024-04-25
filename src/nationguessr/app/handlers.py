@@ -1,17 +1,15 @@
-import io
 import logging
-import os
 
 from aiogram import F, Router, types
 from aiogram.filters import Command, CommandStart, ExceptionTypeFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types.bot_command import BotCommand
-from PIL import Image
 
 from ..data.game import GameSession
 from ..service.fsm.state import BotState
 from ..service.game import GuessingFactsGameService, draw_game_bar, record_new_score
 from ..service.image import ImageEditService
+from ..service.telegram import edit_game_over_card, edit_quiz_game_card
 from ..service.utils import batched
 from ..settings import Settings
 
@@ -69,6 +67,9 @@ async def start_guess_facts_game(
 ) -> None:
     state_data = await state.get_data()
     game_round = await facts_game_service.new_game_round()
+    game_quiz_card = edit_quiz_game_card(
+        text_on_image_service, app_settings, game_round.facts
+    )
 
     new_game_session = GameSession(
         score_board=state_data.get("score_board", {}),
@@ -80,39 +81,20 @@ async def start_guess_facts_game(
 
     await state.set_state(BotState.playing_guess_facts)
     await state.update_data(**new_game_session.model_dump())
-
-    quiz_card_template_path = os.path.join(
-        app_settings.assets_folder, "cards", "game_guessing.png"
+    await message.answer_photo(
+        game_quiz_card,
+        caption=draw_game_bar(new_game_session, app_settings)
+        + "\n\nGet ready for an exciting challenge! Here are "
+        "5 intriguing facts about the country. Do you know "
+        "the right answer?",
+        reply_markup=types.ReplyKeyboardMarkup(
+            keyboard=[
+                [types.KeyboardButton(text=option) for option in batch]
+                for batch in batched(game_round.options, n=2)
+            ],
+            resize_keyboard=True,
+        ),
     )
-
-    with (
-        Image.open(quiz_card_template_path) as quiz_card_template,
-        io.BytesIO() as img_buffer,
-    ):
-        numerated_text = [
-            f"{i + 1}. {chunk}" for i, chunk in enumerate(game_round.facts)
-        ]
-        quiz_card_image = text_on_image_service.add_multiline_text(
-            quiz_card_template, numerated_text, position=(0, -100), center=True
-        )
-        quiz_card_image.save(img_buffer, format="PNG")
-
-        img_buffer.seek(0)
-
-        await message.answer_photo(
-            types.BufferedInputFile(img_buffer.read(), filename="quiz_card.png"),
-            caption=draw_game_bar(new_game_session, app_settings)
-            + "\n\nGet ready for an exciting challenge! Here are "
-            "5 intriguing facts about the country. Do you know "
-            "the right answer?",
-            reply_markup=types.ReplyKeyboardMarkup(
-                keyboard=[
-                    [types.KeyboardButton(text=option) for option in batch]
-                    for batch in batched(game_round.options, n=2)
-                ],
-                resize_keyboard=True,
-            ),
-        )
 
 
 @root_router.message(BotState.playing_guess_facts, F.text.regexp(r"^[^/].*"))
@@ -146,50 +128,53 @@ async def play_guess_facts_game(
         current_game_session.current_score += 1
 
     if current_game_session.lives_remained == 0:
-        await end_game_and_display_score(
-            message, state, current_game_session, score_edit_service, app_settings
+        current_score = current_game_session.current_score
+        current_game_session = record_new_score(current_game_session, app_settings)
+        game_over_card = edit_game_over_card(
+            score_edit_service, app_settings, current_score
+        )
+
+        await state.set_state(BotState.select_game)
+        await state.update_data(**current_game_session.model_dump())
+        await message.answer_photo(
+            game_over_card,
+            caption="👾 The game is over! Want to give it another go? Just select new game from the options below to "
+            "start fresh!",
+            reply_markup=types.ReplyKeyboardMarkup(
+                keyboard=[
+                    [
+                        types.KeyboardButton(text="🔍 Guess from Facts"),
+                        types.KeyboardButton(text="🚩 Guess by Flag"),
+                    ]
+                ],
+                resize_keyboard=True,
+            ),
         )
 
         return
 
     game_round = await facts_game_service.new_game_round()
+    game_quiz_card = edit_quiz_game_card(
+        text_on_image_service, app_settings, game_round.facts
+    )
 
     current_game_session.options = game_round.options
     current_game_session.correct_option = game_round.correct_option
 
     await state.update_data(**current_game_session.model_dump())
-
-    quiz_card_template_path = os.path.join(
-        app_settings.assets_folder, "cards", "game_guessing.png"
+    await message.answer_photo(
+        game_quiz_card,
+        caption=draw_game_bar(current_game_session, app_settings)
+        + "\n\n"
+        + response_message,
+        reply_markup=types.ReplyKeyboardMarkup(
+            keyboard=[
+                [types.KeyboardButton(text=option) for option in batch]
+                for batch in batched(game_round.options, n=2)
+            ],
+            resize_keyboard=True,
+        ),
     )
-
-    with (
-        Image.open(quiz_card_template_path) as quiz_card_template,
-        io.BytesIO() as img_buffer,
-    ):
-        numerated_text = [
-            f"{i + 1}. {chunk}" for i, chunk in enumerate(game_round.facts)
-        ]
-        quiz_card_image = text_on_image_service.add_multiline_text(
-            quiz_card_template, numerated_text, position=(0, -100), center=True
-        )
-        quiz_card_image.save(img_buffer, format="PNG")
-
-        img_buffer.seek(0)
-
-        await message.answer_photo(
-            types.BufferedInputFile(img_buffer.read(), filename="quiz_card.png"),
-            caption=draw_game_bar(current_game_session, app_settings)
-            + "\n\n"
-            + response_message,
-            reply_markup=types.ReplyKeyboardMarkup(
-                keyboard=[
-                    [types.KeyboardButton(text=option) for option in batch]
-                    for batch in batched(game_round.options, n=2)
-                ],
-                resize_keyboard=True,
-            ),
-        )
 
 
 @root_router.message(
@@ -213,8 +198,28 @@ async def restart_handler(
 
     state_data = await state.get_data()
     current_game_session = GameSession(**state_data)
-    await end_game_and_display_score(
-        message, state, current_game_session, score_edit_service, app_settings
+
+    current_score = current_game_session.current_score
+    current_game_session = record_new_score(current_game_session, app_settings)
+    game_over_card = edit_game_over_card(
+        score_edit_service, app_settings, current_score
+    )
+
+    await state.set_state(BotState.select_game)
+    await state.update_data(**current_game_session.model_dump())
+    await message.answer_photo(
+        game_over_card,
+        caption="👾 The game is over! Want to give it another go? Just select new game from the options below to "
+        "start fresh!",
+        reply_markup=types.ReplyKeyboardMarkup(
+            keyboard=[
+                [
+                    types.KeyboardButton(text="🔍 Guess from Facts"),
+                    types.KeyboardButton(text="🚩 Guess by Flag"),
+                ]
+            ],
+            resize_keyboard=True,
+        ),
     )
 
 
@@ -288,49 +293,3 @@ async def clear_handler(message: types.Message, state: FSMContext) -> None:
         "🌟 The leaderboard's been wiped clean! Tap /start to jump into your next adventure! 🌟",
         reply_markup=types.ReplyKeyboardRemove(),
     )
-
-
-async def end_game_and_display_score(
-    message: types.Message,
-    state: FSMContext,
-    game_session: GameSession,
-    score_edit_service: ImageEditService,
-    app_settings: Settings,
-) -> None:
-    current_score = game_session.current_score
-    current_game_session = record_new_score(game_session, app_settings)
-
-    game_over_card_template_path = os.path.join(
-        app_settings.assets_folder, "cards", "game_over.png"
-    )
-
-    with (
-        Image.open(game_over_card_template_path) as game_over_card_template,
-        io.BytesIO() as img_buffer,
-    ):
-        game_over_card_image = score_edit_service.add_text(
-            game_over_card_template,
-            str(current_score),
-            position=(0, 10),
-            center=True,
-        )
-        game_over_card_image.save(img_buffer, format="PNG")
-
-        img_buffer.seek(0)
-
-        await state.set_state(BotState.select_game)
-        await state.update_data(**current_game_session.model_dump())
-        await message.answer_photo(
-            types.BufferedInputFile(img_buffer.read(), filename="game_over_card.png"),
-            caption="👾 The game is over! Want to give it another go? Just select new game from the options below to "
-                    "start fresh!",
-            reply_markup=types.ReplyKeyboardMarkup(
-                keyboard=[
-                    [
-                        types.KeyboardButton(text="🔍 Guess from Facts"),
-                        types.KeyboardButton(text="🚩 Guess by Flag"),
-                    ]
-                ],
-                resize_keyboard=True,
-            ),
-        )
