@@ -15,38 +15,44 @@ from ..service.utils import reservoir_sampling
 from ..settings import Settings
 
 
-def number_as_emoji(num: int, slots: int = 5) -> str:
-    """Converts the digits of a positive integer into their equivalent emoji characters.
+def number_as_character(
+    num: int, slots: int = 5, char_map: List[str] | None = None
+) -> str:
+    """Converts the digits of a positive integer into their equivalent ASCII or Unicode characters.
+    The list of characters that correspond to digits 0-9 should be provided in `char_map`; otherwise,
+    the default ASCII representation ["0" - "9"] is used. The element index from 0 to 9 should map to the
+    character that represents a digit, and the number of elements must be equal to the number of digits
+    0-9, which is 10.
 
-    The function uses a mapping of digits from 0 to 9 to their corresponding emoji characters.
-    Conversion is performed per digit from right to left using base-10 division strategy of `num`.
+    Conversion is performed per digit from right to left using the base-10 division strategy of `num`.
 
     Args:
-        num (int): The positive integer to be converted into emoji.
-        slots (int): The minimum number of emoji characters in the output. If the number of digits
+        num (int): The positive integer to be converted into characters.
+        slots (int): The minimum number of character slots in the output. If the number of digits
             in `num` is less than `slots`, the result is left-padded with '0' characters.
+        char_map (List[str] | None, optional): A list of characters that map to the digits 0-9.
+            If not provided, the default ASCII representation ["0" - "9"] is used.
 
     Returns:
-        str: A string representation of the number using emoji characters for each digit.
+        str: A string representation of the number using the specified characters for each digit.
 
     Raises:
-        ValueError: If input integer value is negative or if the minimum number of emoji characters is less than 1.
+        ValueError: If the input integer value is negative.
+        ValueError: If the minimum number of character slots is less than 1.
+        ValueError: If the number of elements in `char_map` does not equal 10.
 
     Examples:
-        >>> number_as_emoji(123)
-        '1️⃣2️⃣3️⃣'
-        >>> number_as_emoji(405, slots=6)
-        '0️⃣0️⃣0️⃣4️⃣0️⃣5️⃣'
-        >>> number_as_emoji(0)
-        '0️⃣'
+        >>> number_as_character(123)
+        '123'
+        >>> number_as_character(405, slots=6)
+        '000405'
+        >>> number_as_character(0)
+        '0'
         >>> try:
-        ...     number_as_emoji(-1)
+        ...     number_as_character(-1)
         ... except ValueError as e:
         ...     print(e)
         The input integer value must be positive
-
-    Note:
-        - Emoji character mapping is defined in the function body.
     """
 
     if num < 0:
@@ -54,12 +60,21 @@ def number_as_emoji(num: int, slots: int = 5) -> str:
     elif slots < 1:
         raise ValueError("The minimum number of emoji characters must be at least 1")
 
-    emoji_map = ["0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣"]
-
     if num == 0:
-        return emoji_map[0] * max(
+        return char_map[0] * max(
             1, slots
         )  # Ensure that even '0' has the minimum number of characters
+
+    char_map = (
+        ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+        if char_map is None
+        else char_map
+    )
+
+    if len(char_map) != 10:
+        raise ValueError(
+            "The number of elements in `char_map` must correspond to the number of digits 0-9, i.e., equal 10."
+        )
 
     emoji_number = ""
     num_base = (
@@ -72,12 +87,12 @@ def number_as_emoji(num: int, slots: int = 5) -> str:
             10  # Remove last digit from remaining digits sequence of the input integer
         )
 
-        emoji_number = emoji_map[last_digit] + emoji_number
+        emoji_number = char_map[last_digit] + emoji_number
 
     if (
         num_base < slots
     ):  # Left pad result with extra zeros if its length is less than slots number
-        emoji_number = emoji_map[0] * (slots - num_base) + emoji_number
+        emoji_number = char_map[0] * (slots - num_base) + emoji_number
 
     return emoji_number
 
@@ -86,7 +101,7 @@ def draw_game_bar(session: GameSession, settings: Settings, bar_gap: int = 20) -
     health_bar = "❤️" * session.lives_remained + "💔" * (
         settings.default_init_lives - session.lives_remained
     )
-    score_bar = number_as_emoji(session.current_score)
+    score_bar = number_as_character(session.current_score)
 
     return health_bar + " " * bar_gap + score_bar
 
