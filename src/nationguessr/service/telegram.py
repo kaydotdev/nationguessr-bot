@@ -49,8 +49,11 @@ def edit_quiz_game_card(
         app_settings.assets_folder, "cards", "game_guessing.png"
     )
 
+    heart_icon_path = os.path.join(app_settings.assets_folder, "icons", "heart.png")
+
     with (
         Image.open(quiz_card_template_path) as quiz_card_template,
+        Image.open(heart_icon_path) as heart_icon,
         io.BytesIO() as img_buffer,
     ):
         numerated_text = [f"{i + 1}. {chunk}" for i, chunk in enumerate(round_facts)]
@@ -67,6 +70,12 @@ def edit_quiz_game_card(
             text_size=64,
             position=(713, 50),
         )
+
+        for i in range(game_session.lives_remained):
+            quiz_card_template.paste(
+                heart_icon, (100 + i * heart_icon.width, 50), mask=heart_icon
+            )
+
         quiz_card_image.save(img_buffer, format="PNG")
 
         img_buffer.seek(0)
