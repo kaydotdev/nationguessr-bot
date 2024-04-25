@@ -103,9 +103,12 @@ def number_as_character(
 
 def record_new_score(session: GameSession, settings: Settings) -> GameSession:
     recorded_scores = session.score_board.keys()
+    top_recorded_scores = sorted(recorded_scores, reverse=True)[
+        : settings.default_top_scores
+    ]
 
     if len(recorded_scores) >= settings.default_top_scores and all(
-        score > session.current_score for score in recorded_scores
+        score > session.current_score for score in top_recorded_scores
     ):
         return session
 
