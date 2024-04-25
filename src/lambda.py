@@ -14,7 +14,6 @@ from nationguessr.service.game import (
 )
 from nationguessr.service.image import ImageEditService
 from nationguessr.settings import Settings
-from PIL import ImageFont
 
 settings = Settings()
 
@@ -48,13 +47,7 @@ async def main(update_event) -> None:
     text_font_path = os.path.join(
         settings.assets_folder, "fonts", "Poppins-ExtraBold.ttf"
     )
-
-    text_on_image_service = ImageEditService(
-        ImageFont.truetype(text_font_path, 28), settings.default_text_color
-    )
-    score_edit_service = ImageEditService(
-        ImageFont.truetype(text_font_path, 128), settings.default_text_color
-    )
+    image_edit_service = ImageEditService(text_font_path, settings.default_text_color)
 
     update_obj = types.Update(**update_event)
 
@@ -62,8 +55,7 @@ async def main(update_event) -> None:
         bot=bot,
         update=update_obj,
         facts_game_service=facts_game_service,
-        text_on_image_service=text_on_image_service,
-        score_edit_service=score_edit_service,
+        image_edit_service=image_edit_service,
         app_settings=settings,
     )
 

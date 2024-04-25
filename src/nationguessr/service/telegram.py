@@ -25,6 +25,7 @@ def edit_game_over_card(
         game_over_card_image = image_edit_service.add_text(
             game_over_card_template,
             str(final_score),
+            text_size=128,
             position=(0, 10),
             center=True,
         )
@@ -51,7 +52,11 @@ def edit_quiz_game_card(
     ):
         numerated_text = [f"{i + 1}. {chunk}" for i, chunk in enumerate(round_facts)]
         quiz_card_image = image_edit_service.add_multiline_text(
-            quiz_card_template, numerated_text, position=(0, -100), center=True
+            quiz_card_template,
+            numerated_text,
+            text_size=28,
+            position=(0, -100),
+            center=True,
         )
         quiz_card_image.save(img_buffer, format="PNG")
 

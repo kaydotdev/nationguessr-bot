@@ -62,13 +62,13 @@ async def start_guess_facts_game(
     message: types.Message,
     state: FSMContext,
     facts_game_service: GuessingFactsGameService,
-    text_on_image_service: ImageEditService,
+    image_edit_service: ImageEditService,
     app_settings: Settings,
 ) -> None:
     state_data = await state.get_data()
     game_round = await facts_game_service.new_game_round()
     game_quiz_card = edit_quiz_game_card(
-        text_on_image_service, app_settings, game_round.facts
+        image_edit_service, app_settings, game_round.facts
     )
 
     new_game_session = GameSession(
@@ -102,8 +102,7 @@ async def play_guess_facts_game(
     message: types.Message,
     state: FSMContext,
     facts_game_service: GuessingFactsGameService,
-    text_on_image_service: ImageEditService,
-    score_edit_service: ImageEditService,
+    image_edit_service: ImageEditService,
     app_settings: Settings,
 ) -> None:
     """The handler considers any user input as valid only if it is a bot command,
@@ -131,7 +130,7 @@ async def play_guess_facts_game(
         current_score = current_game_session.current_score
         current_game_session = record_new_score(current_game_session, app_settings)
         game_over_card = edit_game_over_card(
-            score_edit_service, app_settings, current_score
+            image_edit_service, app_settings, current_score
         )
 
         await state.set_state(BotState.select_game)
@@ -155,7 +154,7 @@ async def play_guess_facts_game(
 
     game_round = await facts_game_service.new_game_round()
     game_quiz_card = edit_quiz_game_card(
-        text_on_image_service, app_settings, game_round.facts
+        image_edit_service, app_settings, game_round.facts
     )
 
     current_game_session.options = game_round.options
@@ -188,7 +187,7 @@ async def play_guess_facts_game(
 async def restart_handler(
     message: types.Message,
     state: FSMContext,
-    score_edit_service: ImageEditService,
+    image_edit_service: ImageEditService,
     app_settings: Settings,
 ) -> None:
     logger.info(
@@ -202,7 +201,7 @@ async def restart_handler(
     current_score = current_game_session.current_score
     current_game_session = record_new_score(current_game_session, app_settings)
     game_over_card = edit_game_over_card(
-        score_edit_service, app_settings, current_score
+        image_edit_service, app_settings, current_score
     )
 
     await state.set_state(BotState.select_game)
