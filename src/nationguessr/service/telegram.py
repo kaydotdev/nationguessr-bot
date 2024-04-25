@@ -5,6 +5,8 @@ from typing import List
 from aiogram.types import BufferedInputFile
 from PIL import Image
 
+from ..data.game import GameSession
+from ..service.game import number_as_character
 from ..service.image import ImageEditService
 from ..settings import Settings
 
@@ -39,6 +41,7 @@ def edit_game_over_card(
 
 def edit_quiz_game_card(
     image_edit_service: ImageEditService,
+    game_session: GameSession,
     app_settings: Settings,
     round_facts: List[str],
 ) -> BufferedInputFile:
@@ -57,6 +60,12 @@ def edit_quiz_game_card(
             text_size=28,
             position=(0, -100),
             center=True,
+        )
+        quiz_card_image = image_edit_service.add_text(
+            quiz_card_image,
+            number_as_character(game_session.current_score),
+            text_size=64,
+            position=(713, 50),
         )
         quiz_card_image.save(img_buffer, format="PNG")
 

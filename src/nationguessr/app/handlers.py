@@ -7,7 +7,7 @@ from aiogram.types.bot_command import BotCommand
 
 from ..data.game import GameSession
 from ..service.fsm.state import BotState
-from ..service.game import GuessingFactsGameService, draw_game_bar, record_new_score
+from ..service.game import GuessingFactsGameService, record_new_score
 from ..service.image import ImageEditService
 from ..service.telegram import edit_game_over_card, edit_quiz_game_card
 from ..service.utils import batched
@@ -67,9 +67,6 @@ async def start_guess_facts_game(
 ) -> None:
     state_data = await state.get_data()
     game_round = await facts_game_service.new_game_round()
-    game_quiz_card = edit_quiz_game_card(
-        image_edit_service, app_settings, game_round.facts
-    )
 
     new_game_session = GameSession(
         score_board=state_data.get("score_board", {}),
@@ -79,14 +76,16 @@ async def start_guess_facts_game(
         correct_option=game_round.correct_option,
     )
 
+    game_quiz_card = edit_quiz_game_card(
+        image_edit_service, new_game_session, app_settings, game_round.facts
+    )
+
     await state.set_state(BotState.playing_guess_facts)
     await state.update_data(**new_game_session.model_dump())
     await message.answer_photo(
         game_quiz_card,
-        caption=draw_game_bar(new_game_session, app_settings)
-        + "\n\nGet ready for an exciting challenge! Here are "
-        "5 intriguing facts about the country. Do you know "
-        "the right answer?",
+        caption="Get ready for an exciting challenge! Here are 5 intriguing facts about the country. "
+        "Do you know the right answer?",
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [types.KeyboardButton(text=option) for option in batch]
@@ -154,7 +153,7 @@ async def play_guess_facts_game(
 
     game_round = await facts_game_service.new_game_round()
     game_quiz_card = edit_quiz_game_card(
-        image_edit_service, app_settings, game_round.facts
+        image_edit_service, current_game_session, app_settings, game_round.facts
     )
 
     current_game_session.options = game_round.options
@@ -163,9 +162,7 @@ async def play_guess_facts_game(
     await state.update_data(**current_game_session.model_dump())
     await message.answer_photo(
         game_quiz_card,
-        caption=draw_game_bar(current_game_session, app_settings)
-        + "\n\n"
-        + response_message,
+        caption=response_message,
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [types.KeyboardButton(text=option) for option in batch]

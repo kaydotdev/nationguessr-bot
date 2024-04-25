@@ -60,13 +60,9 @@ def number_as_character(
 
     if num < 0:
         raise ValueError("The input integer value must be positive")
-    elif slots < 1:
-        raise ValueError("The minimum number of emoji characters must be at least 1")
 
-    if num == 0:
-        return char_map[0] * max(
-            1, slots
-        )  # Ensure that even '0' has the minimum number of characters
+    if slots < 1:
+        raise ValueError("The minimum number of emoji characters must be at least 1")
 
     char_map = (
         ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
@@ -78,6 +74,11 @@ def number_as_character(
         raise ValueError(
             "The number of elements in `char_map` must correspond to the number of digits 0-9, i.e., equal 10."
         )
+
+    if num == 0:
+        return char_map[0] * max(
+            1, slots
+        )  # Ensure that even '0' has the minimum number of characters
 
     emoji_number = ""
     num_base = (
@@ -98,15 +99,6 @@ def number_as_character(
         emoji_number = char_map[0] * (slots - num_base) + emoji_number
 
     return emoji_number
-
-
-def draw_game_bar(session: GameSession, settings: Settings, bar_gap: int = 20) -> str:
-    health_bar = "❤️" * session.lives_remained + "💔" * (
-        settings.default_init_lives - session.lives_remained
-    )
-    score_bar = number_as_character(session.current_score)
-
-    return health_bar + " " * bar_gap + score_bar
 
 
 def record_new_score(session: GameSession, settings: Settings) -> GameSession:
