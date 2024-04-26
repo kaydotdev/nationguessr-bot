@@ -76,7 +76,7 @@ async def start_guess_facts_game(
         correct_option=game_round.correct_option,
     )
 
-    game_quiz_card = edit_quiz_game_card(
+    game_quiz_card = await edit_quiz_game_card(
         image_edit_service, new_game_session, app_settings, game_round.facts
     )
 
@@ -136,7 +136,7 @@ async def play_guess_facts_game(
     if current_game_session.lives_remained == 0:
         current_score = current_game_session.current_score
         current_game_session = record_new_score(current_game_session, app_settings)
-        game_over_card = edit_game_over_card(
+        game_over_card = await edit_game_over_card(
             image_edit_service, app_settings, current_score
         )
 
@@ -160,7 +160,7 @@ async def play_guess_facts_game(
         return
 
     game_round = await facts_game_service.new_game_round()
-    game_quiz_card = edit_quiz_game_card(
+    game_quiz_card = await edit_quiz_game_card(
         image_edit_service, current_game_session, app_settings, game_round.facts
     )
 
@@ -205,7 +205,7 @@ async def restart_handler(
 
     current_score = current_game_session.current_score
     current_game_session = record_new_score(current_game_session, app_settings)
-    game_over_card = edit_game_over_card(
+    game_over_card = await edit_game_over_card(
         image_edit_service, app_settings, current_score
     )
 
