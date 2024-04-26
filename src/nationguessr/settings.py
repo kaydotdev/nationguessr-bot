@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="VAR_", case_sensitive=False)
     logging_level: LoggingLevel = Field(default=LoggingLevel.INFO)
 
+    # Project information
+    project_url: str = Field(default="https://github.com/kaydotdev/nationguessr-bot")
+
     # Bot settings
     token: str = Field(...)
     secret_token: str | None = Field(default=None)

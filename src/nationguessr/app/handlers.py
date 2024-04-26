@@ -5,6 +5,7 @@ from aiogram.enums import InputMediaType
 from aiogram.filters import Command, CommandStart, ExceptionTypeFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types.bot_command import BotCommand
+from aiogram.utils.markdown import link
 
 from ..data.game import GameSession
 from ..service.fsm.state import BotState
@@ -34,7 +35,7 @@ async def error_handler(event: types.ErrorEvent, message: types.Message):
 
 
 @root_router.message(CommandStart())
-async def start_handler(message: types.Message, state: FSMContext) -> None:
+async def start_handler(message: types.Message, state: FSMContext, app_settings: Settings) -> None:
     logger.info(
         f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /start"
         " command"
@@ -49,7 +50,9 @@ async def start_handler(message: types.Message, state: FSMContext) -> None:
         "relive your victories? Hit /score to revel in your personal hall of fame.\n🧹 Ready to reset and break "
         "new records? Use /clear to wipe the slate clean.\n📚 Need a quick guide on how to play? Tap /tutorial "
         "for a brief overview of our quiz games.\n\nSo, what do you think—eager to start a guessing game that "
-        "transports you around the world? Let’s jump right in!",
+        "transports you around the world? Let’s jump right in! If you’re enjoying this quiz-tastic journey, why "
+        f"not swing by the {link('project page', app_settings.project_url)} and leave a star? Your support "
+        f"helps keep our trivia travels exciting and expansive! 🌟",
         reply_markup=types.ReplyKeyboardMarkup(
             keyboard=[
                 [
@@ -59,6 +62,7 @@ async def start_handler(message: types.Message, state: FSMContext) -> None:
             ],
             resize_keyboard=True,
         ),
+        disable_web_page_preview=True
     )
 
 
