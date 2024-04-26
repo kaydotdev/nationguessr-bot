@@ -102,21 +102,19 @@ def number_as_character(
 
 
 def record_new_score(session: GameSession, settings: Settings) -> GameSession:
-    recorded_scores = session.score_board.keys()
-    top_recorded_scores = sorted(recorded_scores, reverse=True)[
-        : settings.default_top_scores
-    ]
-
-    if len(recorded_scores) >= settings.default_top_scores and all(
-        score > session.current_score for score in top_recorded_scores
-    ):
-        return session
-
     score_timestamp = datetime.utcnow().strftime("%d/%m/%Y")
-    current_score = session.current_score
 
-    session.score_board.update({current_score: score_timestamp})
+    current_score = session.current_score
     session.current_score = 0
+
+    if len(session.score_board.items()) < settings.default_top_scores:
+        session.score_board.update({current_score: score_timestamp})
+    elif any(score < current_score for score in session.score_board.keys()):
+        if current_score not in session.score_board:
+            least_valuable_score = min(session.score_board.keys())
+            session.score_board.pop(least_valuable_score)
+
+        session.score_board[current_score] = score_timestamp
 
     return session
 
