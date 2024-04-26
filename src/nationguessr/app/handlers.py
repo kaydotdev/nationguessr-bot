@@ -1,6 +1,7 @@
 import logging
 
 from aiogram import F, Router, types
+from aiogram.enums import InputMediaType
 from aiogram.filters import Command, CommandStart, ExceptionTypeFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types.bot_command import BotCommand
@@ -82,13 +83,19 @@ async def start_guess_facts_game(
 
     await state.set_state(BotState.playing_guess_facts)
     await state.update_data(**new_game_session.model_dump())
+    await message.answer(
+        text="Get ready for an exciting challenge! Here are 5 intriguing facts about the country. "
+        "Do you know the right answer?",
+        reply_markup=types.ReplyKeyboardRemove(),
+    )
     await message.answer_photo(
         game_quiz_card,
-        caption="Get ready for an exciting challenge! Here are 5 intriguing facts about the country. "
-        "Do you know the right answer?",
-        reply_markup=types.ReplyKeyboardMarkup(
-            keyboard=[
-                [types.KeyboardButton(text=option) for option in batch]
+        reply_markup=types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(text=option, callback_data=option)
+                    for option in batch
+                ]
                 for batch in batched(game_round.options, n=2)
             ],
             resize_keyboard=True,
@@ -104,9 +111,9 @@ async def start_guess_flag_game(message: types.Message) -> None:
     )
 
 
-@root_router.message(BotState.playing_guess_facts, F.text.regexp(r"^[^/].*"))
+@root_router.callback_query(BotState.playing_guess_facts)
 async def play_guess_facts_game(
-    message: types.Message,
+    callback_query: types.CallbackQuery,
     state: FSMContext,
     facts_game_service: GuessingFactsGameService,
     image_edit_service: ImageEditService,
@@ -120,10 +127,13 @@ async def play_guess_facts_game(
     state_data = await state.get_data()
     current_game_session = GameSession(**state_data)
 
-    if message.text is None or message.text not in current_game_session.options:
+    if (
+        callback_query.data is None
+        or callback_query.data not in current_game_session.options
+    ):
         response_message = "🚀 Whoa there, trailblazer! Your answer was not on the list. Let's try again, shall we?"
         current_game_session.lives_remained -= 1
-    elif message.text != current_game_session.correct_option:
+    elif callback_query.data != current_game_session.correct_option:
         response_message = (
             f"😅 Almost nailed it! The right answer was '{current_game_session.correct_option}'. Ready "
             f"to dive into the next one?"
@@ -142,10 +152,16 @@ async def play_guess_facts_game(
 
         await state.set_state(BotState.select_game)
         await state.update_data(**current_game_session.model_dump())
-        await message.answer_photo(
-            game_over_card,
-            caption="👾 The game is over! Want to give it another go? Just select new game from the options below to "
-            "start fresh!",
+        await callback_query.message.edit_media(
+            types.InputMediaPhoto(
+                type=InputMediaType.PHOTO,
+                media=game_over_card,
+            ),
+        )
+
+        await callback_query.message.answer(
+            text="👾 The game is over! Want to give it another go? Just select new game from the options below to start"
+            " fresh!",
             reply_markup=types.ReplyKeyboardMarkup(
                 keyboard=[
                     [
@@ -156,6 +172,8 @@ async def play_guess_facts_game(
                 resize_keyboard=True,
             ),
         )
+
+        await callback_query.answer()
 
         return
 
@@ -168,17 +186,25 @@ async def play_guess_facts_game(
     current_game_session.correct_option = game_round.correct_option
 
     await state.update_data(**current_game_session.model_dump())
-    await message.answer_photo(
-        game_quiz_card,
-        caption=response_message,
-        reply_markup=types.ReplyKeyboardMarkup(
-            keyboard=[
-                [types.KeyboardButton(text=option) for option in batch]
+    await callback_query.message.edit_media(
+        types.InputMediaPhoto(
+            type=InputMediaType.PHOTO,
+            media=game_quiz_card,
+            caption=response_message,
+        ),
+        reply_markup=types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(text=option, callback_data=option)
+                    for option in batch
+                ]
                 for batch in batched(game_round.options, n=2)
             ],
             resize_keyboard=True,
         ),
     )
+
+    await callback_query.answer()
 
 
 @root_router.message(
