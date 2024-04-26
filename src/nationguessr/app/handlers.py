@@ -10,7 +10,11 @@ from ..data.game import GameSession
 from ..service.fsm.state import BotState
 from ..service.game import GuessingFactsGameService, record_new_score
 from ..service.image import ImageEditService
-from ..service.telegram import edit_game_over_card, edit_quiz_game_card
+from ..service.telegram import (
+    edit_game_over_card,
+    edit_game_scores_card,
+    edit_quiz_game_card,
+)
 from ..service.utils import batched
 from ..settings import Settings
 
@@ -279,7 +283,12 @@ async def tutorial_handler(message: types.Message, app_settings: Settings) -> No
 @root_router.message(
     Command(BotCommand(command="score", description="View your top score in quiz"))
 )
-async def score_handler(message: types.Message, state: FSMContext) -> None:
+async def score_handler(
+    message: types.Message,
+    state: FSMContext,
+    image_edit_service: ImageEditService,
+    app_settings: Settings,
+) -> None:
     logger.info(
         f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /score"
         " command"
@@ -288,23 +297,16 @@ async def score_handler(message: types.Message, state: FSMContext) -> None:
     state_data = await state.get_data()
 
     if state_data.get("score_board"):
-        scores = GameSession(**state_data).score_board
+        current_game_session = GameSession(**state_data)
 
-        if len(scores) == 0:
+        if len(current_game_session.score_board) == 0:
             await message.answer("🌟 Your scoreboard is a blank canvas!")
         else:
-            score_table = "\n".join(
-                [
-                    f"{i + 1}. {timestamp} - {score} point(s)"
-                    for i, (score, timestamp) in enumerate(
-                        sorted(scores.items(), key=lambda x: x[0], reverse=True)
-                    )
-                ]
+            game_scores_card = await edit_game_scores_card(
+                image_edit_service, current_game_session, app_settings
             )
 
-            await message.answer(
-                f"*🏆 Top Scores 🏆*\n---\n{score_table}",
-            )
+            await message.answer_photo(game_scores_card)
     else:
         await message.answer("🌟 Your scoreboard is a blank canvas!")
 

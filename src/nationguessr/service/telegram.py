@@ -45,6 +45,46 @@ async def edit_game_over_card(
     return BufferedInputFile(output_img_bytes, filename="game_over_card.png")
 
 
+async def edit_game_scores_card(
+    image_edit_service: ImageEditService,
+    game_session: GameSession,
+    app_settings: Settings,
+) -> BufferedInputFile:
+    score_records = [
+        f"{i + 1}. {timestamp} - {score} point(s)"
+        for i, (score, timestamp) in enumerate(
+            sorted(game_session.score_board.items(), key=lambda x: x[0], reverse=True)
+        )
+    ]
+
+    game_scores_template_path = os.path.join(
+        app_settings.assets_folder, "cards", "game_scores.png"
+    )
+
+    async with aiofiles.open(game_scores_template_path, "rb") as template_file:
+        template_image_bytes = await template_file.read()
+
+        with (
+            io.BytesIO(template_image_bytes) as img_buffer,
+            io.BytesIO() as output_img_buffer,
+        ):
+            game_scores_card_template = Image.open(img_buffer)
+            game_scores_image = image_edit_service.add_multiline_text(
+                game_scores_card_template,
+                score_records,
+                text_size=48,
+                position=(0, 0),
+                center=True,
+            )
+
+            game_scores_image.save(output_img_buffer, format="PNG")
+
+            output_img_buffer.seek(0)
+            output_img_bytes = output_img_buffer.read()
+
+    return BufferedInputFile(output_img_bytes, filename="game_scores.png")
+
+
 async def edit_quiz_game_card(
     image_edit_service: ImageEditService,
     game_session: GameSession,
