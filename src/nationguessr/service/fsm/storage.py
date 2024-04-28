@@ -243,7 +243,7 @@ class DynamoDBStorage(BaseStorage):
         if data_val is None:
             raise DetailedAiogramError("Data attribute value cannot be empty")
         elif not isinstance(data_val, dict):
-            raise DetailedAiogramError("Data attribute value cannot be empty")
+            raise DetailedAiogramError("Data attribute type is invalid or value is corrupted")
 
         return {k: json.loads(v.get("S")) for k, v in data_val.get("M").items()}
 
