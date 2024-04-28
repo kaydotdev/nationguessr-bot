@@ -35,7 +35,9 @@ async def error_handler(event: types.ErrorEvent, message: types.Message):
 
 
 @root_router.message(CommandStart())
-async def start_handler(message: types.Message, state: FSMContext, app_settings: Settings) -> None:
+async def start_handler(
+    message: types.Message, state: FSMContext, app_settings: Settings
+) -> None:
     logger.info(
         f"User id={message.from_user.id} (chat_id={message.chat.id}) called a /start"
         " command"
@@ -62,7 +64,7 @@ async def start_handler(message: types.Message, state: FSMContext, app_settings:
             ],
             resize_keyboard=True,
         ),
-        disable_web_page_preview=True
+        disable_web_page_preview=True,
     )
 
 
