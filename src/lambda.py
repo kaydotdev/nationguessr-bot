@@ -9,11 +9,12 @@ from aiogram.enums import ParseMode
 from nationguessr.app.handlers import root_router
 from nationguessr.service.fsm.storage import DynamoDBStorage
 from nationguessr.service.game import (
+    GenerationFromGptStrategy,
     GenerationFromZipStrategy,
     GuessingFactsGameService,
 )
 from nationguessr.service.image import ImageEditService
-from nationguessr.settings import Settings
+from nationguessr.settings import FactsGenerationStrategy, Settings
 
 settings = Settings()
 
@@ -41,15 +42,23 @@ dp.include_router(root_router)
 
 
 async def main(update_event) -> None:
-    facts_generation_strategy = GenerationFromZipStrategy(settings)
-    facts_game_service = GuessingFactsGameService(facts_generation_strategy, settings)
-
     text_font_path = os.path.join(
         settings.assets_folder, "fonts", "Poppins-ExtraBold.ttf"
     )
     image_edit_service = ImageEditService(text_font_path, settings.default_text_color)
 
     update_obj = types.Update(**update_event)
+
+    match settings.fact_generation_strategy:
+        case FactsGenerationStrategy.LOCAL_ZIPFILE:
+            primary_strategy = GenerationFromZipStrategy(settings)
+            facts_game_service = GuessingFactsGameService(primary_strategy, settings)
+        case FactsGenerationStrategy.GENERATIVE_AI:
+            fallback_strategy = GenerationFromZipStrategy(settings)
+            primary_strategy = GenerationFromGptStrategy(settings, fallback_strategy)
+            facts_game_service = GuessingFactsGameService(primary_strategy, settings)
+        case _:
+            raise ValueError("Unsupported fact generation strategy")
 
     await dp.feed_update(
         bot=bot,

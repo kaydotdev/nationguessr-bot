@@ -18,6 +18,7 @@ class LoggingLevel(Enum):
 
 class FactsGenerationStrategy(str, Enum):
     LOCAL_ZIPFILE = "LOCAL_ZIPFILE"
+    GENERATIVE_AI = "GENERATIVE_AI"
 
 
 class Settings(BaseSettings):
@@ -42,11 +43,14 @@ class Settings(BaseSettings):
     default_options_num: NonNegativeInt = Field(default=4)
     default_countries_num: NonNegativeInt = Field(default=194)
 
+    default_text_color: FontRGBColor = Field(default=(66, 68, 110))
+
     fact_generation_strategy: FactsGenerationStrategy = Field(
         FactsGenerationStrategy.LOCAL_ZIPFILE
     )
 
-    default_text_color: FontRGBColor = Field(default=(66, 68, 110))
+    # OpenAI API settings (required only if `FactsGenerationStrategy.GENERATIVE_AI` is selected)
+    openai_api_token: str | None = Field(default=None)
 
     # AWS services and API settings
     aws_access_key: str = Field(...)

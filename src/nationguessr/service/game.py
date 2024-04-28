@@ -1,4 +1,6 @@
 import csv
+import json
+import logging
 import math
 import os
 import random
@@ -9,6 +11,7 @@ from io import BytesIO, StringIO
 from typing import List, Tuple
 
 import aiofiles
+import aiohttp
 
 from ..data.game import FactsGuessingGameRound, GameSession
 from ..service.utils import reservoir_sampling
@@ -148,6 +151,104 @@ class GenerationFromZipStrategy(FactGenerationStrategy):
                     ]
 
         return selected_facts
+
+
+class GenerationFromGptStrategy(FactGenerationStrategy):
+    def __init__(
+        self, settings: Settings, fallback_strategy: FactGenerationStrategy
+    ) -> None:
+        if not settings.openai_api_token:
+            raise AttributeError("No OpenAI API credentials available")
+
+        self._settings = settings
+        self._ai_model_name = "gpt-3.5-turbo"  # A compromise between output quality and slowness of `gpt-4-turbo`
+        self._system_prompt = (
+            "You are a Nationguessr AI, an artificial intelligence that is specialized in interesting facts about "
+            f"counties worldwide. Your goal is to generate {settings.default_facts_num} interesting facts about a "
+            "particular country, based on the name provided, so the user will try to guess this country. Your facts "
+            "should be interesting and cover culture, its ancient history, unique places to visit and about its "
+            "people. Each fact should be a one sentence long. Do not include obvious facts, such as the name of "
+            "the capital or the name of the currency. Do not write a name of the country directly in the facts, "
+            "instead substitute the name with phrase 'this country'. You must not provide facts that somewhat "
+            "related to politics, war or other sensitive topics. When writing output facts, you must always follow "
+            "a template structure, which is a JSON object with a key being an index of generated fact (starting from "
+            '1) and a value being a fact itself:\n\n{\n    "1": "1st fact",\n    "2": "2nd fact",\n    ...\n}'
+        )
+        self._logger = logging.getLogger(self.__class__.__name__)
+        self._headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {settings.openai_api_token}",
+        }
+        self._fallback_strategy = fallback_strategy
+
+    async def generate_facts(self, country_code: str) -> List[str]:
+        async with aiofiles.open(
+            os.path.join(self._settings.assets_folder, "data", "countries.csv"),
+            mode="r",
+        ) as file:
+            reader = csv.reader(
+                StringIO(await file.read()), delimiter=",", quotechar='"'
+            )
+            selected_country = next(
+                _name for _, _code, _name in reader if _code == country_code
+            )
+
+        request_body = {
+            "model": self._ai_model_name,
+            "messages": [
+                {"role": "system", "content": self._system_prompt},
+                {"role": "user", "content": selected_country},
+            ],
+            "temperature": 1.0,
+            "max_tokens": 1024,
+        }
+
+        async with aiohttp.ClientSession() as client:
+            async with client.post(
+                "https://api.openai.com/v1/chat/completions",
+                data=json.dumps(request_body),
+                headers=self._headers,
+            ) as response:
+                response_body = await response.text()
+
+                if response.status != 200:
+                    err_response = json.loads(response_body).get("error", {})
+                    err_msg = err_response.get("message", "")
+
+                    self._logger.error(
+                        f"An error occurred while sending the request to OpenAI API: '{err_msg}'"
+                    )
+                    return await self._fallback_strategy.generate_facts(country_code)
+
+        assistant_choices = json.loads(response_body).get("choices")
+
+        if not assistant_choices:
+            self._logger.error(
+                f"The OpenAI API returned an invalid response for the chosen country "
+                f"'{selected_country}': {assistant_choices}"
+            )
+            return await self._fallback_strategy.generate_facts(country_code)
+
+        generated_facts = assistant_choices[0].get("message")
+
+        if not generated_facts:
+            self._logger.error(
+                f"Received an empty generated list of facts for the country '{selected_country}' from "
+                f"the OpenAI API"
+            )
+            return await self._fallback_strategy.generate_facts(country_code)
+
+        parsed_facts = list(json.loads(generated_facts.get("content", "{}")).values())
+
+        if len(parsed_facts) != self._settings.default_facts_num:
+            self._logger.error(
+                f"Received a generated list of facts for the country '{selected_country}' with invalid "
+                f"number of facts. Expected {self._settings.default_facts_num}, received "
+                f"{len(parsed_facts)}"
+            )
+            return await self._fallback_strategy.generate_facts(country_code)
+
+        return parsed_facts
 
 
 class GuessingFactsGameService:
