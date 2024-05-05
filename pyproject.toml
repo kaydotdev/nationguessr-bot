@@ -26,6 +26,13 @@ optional = true
 requests = "^2.31.0"
 click = "^8.1.7"
 
+[tool.poetry.group.cdk]
+optional = true
+
+[tool.poetry.group.cdk.dependencies]
+aws-cdk-lib = "^2.140.0"
+constructs = "^10.3.0"
+
 [tool.black]
 line-length = 88
 target_version = ['py310']
