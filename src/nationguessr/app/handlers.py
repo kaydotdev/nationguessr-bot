@@ -129,11 +129,6 @@ async def play_guess_facts_game(
     image_edit_service: ImageEditService,
     app_settings: Settings,
 ) -> None:
-    """The handler considers any user input as valid only if it is a bot command,
-    i.e., it starts with a symbol '/', or an answer listed in the current game
-    session options; otherwise, it treats the input as invalid.
-    """
-
     state_data = await state.get_data()
     current_game_session = GameSession(**state_data)
 
