@@ -116,23 +116,27 @@ def record_new_score(session: GameSession, settings: Settings) -> GameSession:
 
     Returns:
         GameSession: The updated game session instance with the new score recorded and the current score reset.
+
+    Note:
+        - This function returns a new session instance without modifying the values of the provided one.
     """
 
+    new_session = GameSession(**session.model_dump())
     score_timestamp = datetime.utcnow().strftime("%d/%m/%Y")
 
-    current_score = session.current_score
-    session.current_score = 0
+    current_score = new_session.current_score
+    new_session.current_score = 0
 
-    if len(session.score_board.items()) < settings.default_top_scores:
-        session.score_board.update({current_score: score_timestamp})
-    elif any(score < current_score for score in session.score_board.keys()):
-        if current_score not in session.score_board:
-            least_valuable_score = min(session.score_board.keys())
-            session.score_board.pop(least_valuable_score)
+    if len(new_session.score_board.items()) < settings.default_top_scores:
+        new_session.score_board.update({current_score: score_timestamp})
+    elif any(score <= current_score for score in new_session.score_board.keys()):
+        if current_score not in new_session.score_board:
+            least_valuable_score = min(new_session.score_board.keys())
+            new_session.score_board.pop(least_valuable_score)
 
-        session.score_board[current_score] = score_timestamp
+        new_session.score_board[current_score] = score_timestamp
 
-    return session
+    return new_session
 
 
 class FactGenerationStrategy(ABC):
