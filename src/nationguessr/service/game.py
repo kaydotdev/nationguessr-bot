@@ -45,12 +45,12 @@ def number_as_character(
         ValueError: If the number of elements in `char_map` does not equal 10.
 
     Examples:
-        >>> number_as_character(123)
-        '123'
+        >>> number_as_character(12345)
+        '12345'
         >>> number_as_character(405, slots=6)
         '000405'
         >>> number_as_character(0)
-        '0'
+        '00000'
         >>> try:
         ...     number_as_character(-1)
         ... except ValueError as e:
@@ -105,6 +105,19 @@ def number_as_character(
 
 
 def record_new_score(session: GameSession, settings: Settings) -> GameSession:
+    """Records a new score into the session's scoreboard and resets the current score to zero.
+    Keeps only the top number of scores, as specified in the settings, along with the corresponding
+    dates of score achievements.
+
+    Args:
+        session (GameSession): An instance of a game session containing the current score and scoreboard.
+        settings (Settings): An application settings instance specifying the number of top scores to display
+                             on the scoreboard.
+
+    Returns:
+        GameSession: The updated game session instance with the new score recorded and the current score reset.
+    """
+
     score_timestamp = datetime.utcnow().strftime("%d/%m/%Y")
 
     current_score = session.current_score
