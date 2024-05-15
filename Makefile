@@ -14,19 +14,19 @@ ci: lint test
 .PHONY: lint
 # Verify proper formatting for Python files
 lint:
-	black --diff --check src/ scripts/ -q
+	black --diff --check src/ tests/ scripts/ -q
 	ruff check .
 
 .PHONY: format
 # Automatic fix linting errors for all Python files
 format:
-	black src/ scripts/ -q
+	black src/ tests/ scripts/ -q
 	ruff check --fix .
 
 .PHONY: test
 # Run all project test suites
 test:
-	pytest src/tests/
+	pytest tests/
 
 .PHONY: requirements
 # Export project dependencies for production container
