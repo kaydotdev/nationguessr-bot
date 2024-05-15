@@ -4,6 +4,7 @@ from aws_cdk import (
     Stack,
     Tags,
     aws_apigatewayv2,
+    aws_apigatewayv2_integrations,
     aws_dynamodb,
     aws_ecr,
     aws_iam,
@@ -37,6 +38,8 @@ class NationguessrStack(Stack):
             self,
             "ApiGatewayV2Api",
             api_name="nationguessr-webhook",
+            description="A centralized gateway for the @nationguessr_bot Telegram bot",
+            disable_execute_api_endpoint=False,
         )
         Tags.of(api_gateway).add("Project", "Nationguessr")
 
@@ -59,6 +62,8 @@ class NationguessrStack(Stack):
             "ECRRepository",
             repository_name="nationguessr",
             removal_policy=RemovalPolicy.DESTROY,
+            image_tag_mutability=aws_ecr.TagMutability.MUTABLE,
+            encryption=aws_ecr.RepositoryEncryption.AES_256(),
         )
         Tags.of(ecr_repository).add("Project", "Nationguessr")
 
@@ -67,6 +72,9 @@ class NationguessrStack(Stack):
             self,
             "LambdaFunction",
             code=aws_lambda.DockerImageCode.from_ecr(ecr_repository),
+            function_name="nationguessr",
+            description="Entry event handler for the @nationguessr_bot Telegram bot. Receives events from the API "
+            "Gateway via Telegram webhook, which is sent manually",
             memory_size=1024,
             timeout=Duration.seconds(30),
             reserved_concurrent_executions=10,
@@ -82,4 +90,14 @@ class NationguessrStack(Stack):
             function_name=lambda_function.function_arn,
             principal="apigateway.amazonaws.com",
             source_arn=f"arn:aws:execute-api:{self.region}:{self.account}:{api_gateway.http_api_id}/*/*/nationguessr",
+        )
+
+        integration = aws_apigatewayv2_integrations.HttpLambdaIntegration(
+            "LambdaFunctionIntegration", handler=lambda_function
+        )
+
+        api_gateway.add_routes(
+            path="/nationguessr",
+            methods=[aws_apigatewayv2.HttpMethod.POST],
+            integration=integration,
         )
