@@ -178,7 +178,7 @@ class GenerationFromGptStrategy(FactGenerationStrategy):
             raise AttributeError("No OpenAI API credentials available")
 
         self._settings = settings
-        self._ai_model_name = "gpt-3.5-turbo"  # A compromise between output quality and slowness of `gpt-4-turbo`
+        self._ai_model_name = "gpt-4o"
         self._system_prompt = (
             "You are a Nationguessr AI, an artificial intelligence that is specialized in interesting facts about "
             f"counties worldwide. Your goal is to generate {settings.default_facts_num} interesting facts about a "
