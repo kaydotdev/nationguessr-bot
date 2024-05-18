@@ -8,9 +8,23 @@ from functools import reduce
 from typing import Any, Dict, Optional, cast
 
 import aiohttp
-from aiogram.exceptions import DetailedAiogramError
 from aiogram.fsm.state import State
 from aiogram.fsm.storage.base import BaseStorage, StateType, StorageKey
+
+
+class FsmStorageException(Exception):
+    def __init__(self, message: str, status_code: Optional[int] = None) -> None:
+        self.status_code = status_code
+        self.message = message
+
+        super().__init__(self.message)
+
+    def __str__(self) -> str:
+        return (
+            self.message
+            if self.message is None
+            else f"{self.message} (HTTPs status code: {self.status_code})"
+        )
 
 
 class DynamoDBStorage(BaseStorage):
@@ -105,8 +119,9 @@ class DynamoDBStorage(BaseStorage):
                     f"Failed to request a state table with '{amz_target}' target in"
                     f" the FSM storage: '{response_err_message}'"
                 )
-                raise DetailedAiogramError(
-                    "Failed to request a state table in the FSM storage"
+                raise FsmStorageException(
+                    "Failed to request a state table in the FSM storage",
+                    status_code=response.status,
                 )
 
         self._logger.debug(
@@ -187,7 +202,7 @@ class DynamoDBStorage(BaseStorage):
         state_val = response_body.get("Item").get("state_value")
 
         if state_val is None:
-            raise DetailedAiogramError("State attribute value cannot be empty")
+            raise FsmStorageException("State attribute value cannot be empty")
 
         return state_val.get("S")
 
@@ -241,9 +256,9 @@ class DynamoDBStorage(BaseStorage):
         data_val = response_body.get("Item").get("data_value")
 
         if data_val is None:
-            raise DetailedAiogramError("Data attribute value cannot be empty")
+            raise FsmStorageException("Data attribute value cannot be empty")
         elif not isinstance(data_val, dict):
-            raise DetailedAiogramError(
+            raise FsmStorageException(
                 "Data attribute type is invalid or value is corrupted"
             )
 
