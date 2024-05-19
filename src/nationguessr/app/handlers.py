@@ -11,13 +11,9 @@ from ..data.game import GameSession
 from ..service.fsm.state import BotState
 from ..service.game import GuessingFactsGameService, record_new_score
 from ..service.image import ImageEditService
-from ..service.telegram import (
-    edit_game_over_card,
-    edit_game_scores_card,
-    edit_quiz_game_card,
-)
 from ..service.utils import batched
 from ..settings import Settings
+from .editing import edit_game_over_card, edit_game_scores_card, edit_quiz_game_card
 
 root_router = Router(name=__name__)
 logger = logging.getLogger()
